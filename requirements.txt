@@ -1,0 +1,5 @@
+Flask
+Flask-SQLAlchemy
+pywebpush
+gunicorn
+psycopg2-binary

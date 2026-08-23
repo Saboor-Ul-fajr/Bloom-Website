@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bloom 🌸</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+</head>
+<body data-page="{{ page }}">
+
+<!-- Toast Notification -->
+<div class="toast" id="toast">
+  <button class="toast-close" id="toast-close" type="button" aria-label="Dismiss notification">×</button>
+  <div class="toast-title" id="toast-title">🌸 Bloom</div>
+  <div class="toast-msg" id="toast-msg"></div>
+</div>
+
+<div class="streak-celebration" id="streak-celebration" aria-live="assertive" aria-hidden="true">
+  <div class="streak-celebration-card">
+    <div class="streak-celebration-sparkles">✦ ✨ ✦</div>
+    <div class="streak-celebration-title">WOOHOO!</div>
+    <div class="streak-celebration-message" id="streak-celebration-message"></div>
+    <button class="btn btn-pink" id="streak-celebration-close" type="button">Keep going!</button>
+  </div>
+</div>
+
+<!-- Mobile navigation -->
+<header class="mobile-topbar">
+  <button class="mobile-nav-icon" id="mobile-toggle" aria-label="Open menu">☰</button>
+  <div class="mobile-brand"><span>🌸</span> Bloom</div>
+  <div class="mobile-nav-arrows">
+    <button class="mobile-nav-icon" id="mobile-back" aria-label="Previous page">‹</button>
+    <button class="mobile-nav-icon" id="mobile-forward" aria-label="Next page">›</button>
+  </div>
+</header>
+
+<div class="app-layout">
+
+  <!-- ══ SIDEBAR ══ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand"><span class="b-icon">🌸</span> Bloom</div>
+
+    <div class="nav-section-label">Daily</div>
+    <a class="nav-item" data-page="dashboard" onclick="showPage('dashboard')"><span class="n-icon">🏡</span>Home</a>
+    <a class="nav-item" data-page="prayer"    onclick="showPage('prayer')"><span class="n-icon">🕌</span>Prayers</a>
+    <a class="nav-item" data-page="thoughts"  onclick="showPage('thoughts')"><span class="n-icon">📓</span>Thoughts</a>
+    <a class="nav-item" data-page="tasks"     onclick="showPage('tasks')"><span class="n-icon">✅</span>Tasks</a>
+
+    <div class="nav-section-label">Track</div>
+    <a class="nav-item" data-page="habits"    onclick="showPage('habits')"><span class="n-icon">🌙</span>Daily Habits</a>
+    <a class="nav-item" data-page="money"     onclick="showPage('money')"><span class="n-icon">💸</span>Money Log</a>
+    <a class="nav-item" data-page="books"     onclick="showPage('books')"><span class="n-icon">📚</span>Books</a>
+
+    <div class="sidebar-footer">
+      <a class="nav-item account-nav-item" data-page="account" onclick="showPage('account')"><span class="account-avatar">{{ user.username[0].upper() }}</span>Account</a>
+    </div>
+  </aside>
+
+  <!-- ══ MAIN ══ -->
+  <main class="main-content">
+
+    <!-- ── DASHBOARD ── -->
+    <div class="page" id="page-dashboard">
+      <div class="page-header">
+        <div class="page-title">Good day! 🌸</div>
+        <div class="page-subtitle" id="dash-greeting">Welcome back, {{ user.username }}.</div>
+      </div>
+
+      <div id="announcement-area"></div>
+
+      <div class="stats-grid" id="dash-stats"></div>
+
+      <div class="card">
+        <div class="card-title">🕌 Today's Prayers — quick tap</div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap" id="dash-prayers"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">✓ Pending Tasks</div>
+        <div id="dash-tasks"></div>
+      </div>
+    </div>
+
+    <!-- ── ACCOUNT ── -->
+    <div class="page" id="page-account">
+      <div class="page-header">
+        <div class="page-title">👤 Account</div>
+        <div class="page-subtitle">Your account and appearance settings</div>
+      </div>
+
+      <div class="account-page-card">
+        <div class="account-page-avatar">{{ user.username[0].upper() }}</div>
+        <div class="account-page-label">Account name</div>
+        <div class="account-page-username">{{ user.username }}</div>
+        <button class="account-notification-button" id="enable-notifications" type="button">Enable phone notifications</button>
+        <div class="account-notification-status" id="notification-status"></div>
+        <a class="account-signout" href="/logout">Sign out</a>
+      </div>
+
+    </div>
+
+    <!-- ── PRAYER ── -->
+    <div class="page" id="page-prayer">
+      <div class="page-header">
+        <div class="page-title">🕌 Prayer Tracker</div>
+        <div class="page-subtitle">Track all 5 daily prayers across the whole month</div>
+      </div>
+
+      <div class="month-nav">
+        <button class="month-nav-btn" onclick="changePrayerMonth(-1)">◀</button>
+        <span class="month-label" id="prayer-month-label">—</span>
+        <button class="month-nav-btn" onclick="changePrayerMonth(1)">▶</button>
+      </div>
+
+      <div class="card" style="overflow-x:auto">
+        <div id="prayer-grid"></div>
+      </div>
+
+      <div class="card card-dual">
+        <div class="prayer-stats-row" style="grid-template-columns:repeat(4,1fr)">
+          <div><div class="prayer-stat-val green-val" id="p-prayed">0</div><div class="prayer-stat-lbl">Prayed This Month</div></div>
+          <div><div class="prayer-stat-val pink-val"  id="p-pct">0%</div><div class="prayer-stat-lbl">Completion Rate</div></div>
+          <div><div class="prayer-stat-val green-val" id="p-streak">0</div><div class="prayer-stat-lbl">Current Streak 🔥</div></div>
+          <div><div class="prayer-stat-val pink-val"  id="p-best">0</div><div class="prayer-stat-lbl">Best Streak 🏆</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── THOUGHTS ── -->
+    <div class="page" id="page-thoughts">
+      <div class="page-header">
+        <div class="page-title">▣ Inner Whispers.</div>
+        <div class="page-subtitle">A cozy corner for emotions.</div>
+      </div>
+
+      <div class="card card-pink">
+        <textarea id="thought-input" placeholder="What's on your mind today...?" style="width:100%;margin-bottom:10px"></textarea>
+        <button class="btn btn-pink" onclick="addThought()">✦ Add Thought</button>
+      </div>
+
+      <div class="filter-row">
+        <button class="ftab active" onclick="filterThoughts('all',this)">All</button>
+        <button class="ftab"        onclick="filterThoughts('fav',this)">⭐ Favourites</button>
+      </div>
+
+      <div id="thought-list"></div>
+    </div>
+
+    <!-- ── TASKS ── -->
+    <div class="page" id="page-tasks">
+      <div class="page-header">
+        <div class="page-title">✅ Tasks</div>
+        <div class="page-subtitle">Create tasks with deadlines and priorities</div>
+      </div>
+
+      <div class="card card-pink">
+        <div class="task-form">
+          <div class="task-form-name">
+            <div style="font-size:0.8rem;font-weight:700;color:var(--text-muted);margin-bottom:6px">Task</div>
+            <input type="text" id="task-input" placeholder="What needs to be done?" style="width:100%">
+          </div>
+          <div>
+            <div style="font-size:0.8rem;font-weight:700;color:var(--text-muted);margin-bottom:6px">Deadline</div>
+            <input type="datetime-local" id="task-deadline" style="width:100%">
+          </div>
+          <div>
+            <div style="font-size:0.8rem;font-weight:700;color:var(--text-muted);margin-bottom:6px">Reminder</div>
+            <input type="datetime-local" id="task-reminder" style="width:100%">
+          </div>
+          <div>
+            <div style="font-size:0.8rem;font-weight:700;color:var(--text-muted);margin-bottom:6px">Priority</div>
+            <select id="task-priority" style="width:100%">
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <button class="btn btn-pink" onclick="addTask()" style="align-self:end">Add</button>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <button class="ftab active" onclick="filterTasks('pending',this)">Pending</button>
+        <button class="ftab"        onclick="filterTasks('done',this)">Done</button>
+        <button class="ftab"        onclick="filterTasks('all',this)">All</button>
+      </div>
+
+      <div id="task-list"></div>
+    </div>
+
+    <!-- ── HABITS ── -->
+    <div class="page" id="page-habits">
+      <div class="page-header">
+        <div class="page-title">🌙 Daily Habits</div>
+        <div class="page-subtitle">Build streaks with your recurring monthly routines</div>
+      </div>
+
+      <div class="card card-green">
+        <div style="display:flex;gap:10px;align-items:center">
+          <input type="text" id="habit-input" placeholder="e.g. Morning walk, 8 glasses of water, Exercise…" style="flex:1">
+          <button class="btn btn-green" onclick="addHabit()">+ Add Habit</button>
+        </div>
+      </div>
+
+      <div id="habit-list"></div>
+    </div>
+
+    <!-- ── MONEY ── -->
+    <div class="page" id="page-money">
+      <div class="page-header">
+        <div class="money-title-row"><div class="page-title">💸 Money Log</div><button class="money-history-button" onclick="showPage('money-details')" aria-label="Open complete history">↗</button></div>
+        <div class="page-subtitle">Track daily spending — meals, snacks and extras</div>
+      </div>
+
+      <div class="money-today-label"><span class="money-today-kicker">Your day</span><strong id="money-today-date">—</strong></div>
+
+      <div class="money-balance-grid">
+        <div class="money-balance-card">
+          <div class="money-balance-label">Total Entered</div>
+          <div class="money-balance-amount" id="money-total-entered">Rs 0.00</div>
+        </div>
+        <div class="money-balance-card">
+          <div class="money-balance-label">Add Money</div>
+          <div class="money-add-row">
+            <input class="money-add-input" type="number" id="money-add-amount" min="0" placeholder="Rs 0">
+            <button class="btn btn-green btn-sm" onclick="addMoneyToBalance()">Add</button>
+            <button class="btn btn-sm" onclick="clearMoneyBalance()">Delete Total</button>
+          </div>
+        </div>
+        <div class="money-balance-card">
+          <div class="money-balance-label">After Spending</div>
+          <div class="money-balance-amount" id="money-after-spending">Rs 0.00</div>
+        </div>
+      </div>
+
+      <div class="money-grid">
+        <div class="money-section">
+          <h4>Today's Spending</h4>
+          <div class="money-row"><span class="money-lbl">Breakfast</span><input class="money-inp" type="number" id="m-breakfast" min="0" placeholder="0" oninput="updateMoneyBox('breakfast', this.value)"></div>
+          <div class="money-row"><span class="money-lbl">Lunch</span><input class="money-inp" type="number" id="m-lunch" min="0" placeholder="0" oninput="updateMoneyBox('lunch', this.value)"></div>
+          <div class="money-row"><span class="money-lbl">Dinner</span><input class="money-inp" type="number" id="m-dinner" min="0" placeholder="0" oninput="updateMoneyBox('dinner', this.value)"></div>
+        </div>
+        <div class="money-section">
+          <h4>Other Categories</h4>
+          <div class="money-row"><span class="money-lbl">Snacks</span><input class="money-inp" type="number" id="m-snacks" min="0" placeholder="0" oninput="updateMoneyBox('snacks', this.value)"></div>
+          <div id="money-other-items"></div>
+          <button type="button" class="add-expense-btn" onclick="addOtherItem()">+ Add item</button>
+        </div>
+      </div>
+
+      <div class="money-total-actions">
+        <div class="money-total-bar">
+          <span class="money-total-lbl">Today's Total</span>
+          <span class="money-total-val" id="money-today-total">Rs 0.00</span>
+        </div>
+        <div class="money-save-box">
+          <button id="save-day-btn" class="money-total-save" onclick="saveMoneyDay()">💾 Save Today</button>
+        </div>
+      </div>
+
+      <div class="card money-summary-card" style="margin-top:1rem">
+        <div class="card-title">📊 Spending Summary</div>
+        <div class="money-summary-content"></div>
+      </div>
+
+    </div>
+
+    <!-- ── MONEY DETAILS ── -->
+    <div class="page" id="page-money-details">
+      <div class="page-header">
+        <div class="page-title">🌷 Money Details</div>
+        <div class="page-subtitle">A cozy look at every spending note from your saved history</div>
+      </div>
+
+      <div class="money-details-topbar">
+        <button class="btn btn-sm" style="background:var(--straw-cream);color:var(--straw-deep);border:1px solid var(--straw-blush)" onclick="showPage('money')">← Back to money log</button>
+        <div class="money-details-title">Complete History</div>
+        <div class="money-summary-tabs">
+          <button class="money-summary-tab active" data-summary="weekly" onclick="showMoneySummary('weekly')">Weekly Summary</button>
+          <button class="money-summary-tab" data-summary="monthly" onclick="showMoneySummary('monthly')">Monthly Summary</button>
+        </div>
+      </div>
+
+      <div class="money-details-card">
+        <div class="money-history-intro"><span class="money-history-icon">₹</span><div><strong>Your spending journal</strong><p>Every saved day, organized from newest to oldest.</p></div></div>
+        <div class="money-summary-content money-history-summary"></div>
+        <div id="money-details-list" class="money-details-list"></div>
+      </div>
+    </div>
+
+    <!-- ── BOOKS ── -->
+    <div class="page" id="page-books">
+      <div class="page-header">
+        <div class="page-title">📚 Reading Tracker</div>
+        <div class="page-subtitle">Log your reading, one page at a time</div>
+      </div>
+
+      <div class="card card-dual" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;text-align:center;margin-bottom:1.1rem" id="book-stats"></div>
+
+      <div class="card card-pink">
+        <div class="book-form">
+          <div class="book-form-title">
+            <div style="font-size:0.8rem;font-weight:700;color:var(--text-muted);margin-bottom:6px">Book Title</div>
+            <input type="text" id="book-title" placeholder="Book title" style="width:100%">
+          </div>
+          <div>
+            <div style="font-size:0.8rem;font-weight:700;color:var(--text-muted);margin-bottom:6px">Total Pages</div>
+            <input type="number" id="book-pages" placeholder="e.g. 300" min="1" style="width:100%">
+          </div>
+          <div>
+            <div style="font-size:0.8rem;font-weight:700;color:var(--text-muted);margin-bottom:6px">Pages/day Goal</div>
+            <input type="number" id="book-goal" placeholder="e.g. 20" min="1" style="width:100%">
+          </div>
+          <button class="btn btn-pink" onclick="addBook()" style="align-self:end">Add Book</button>
+        </div>
+      </div>
+
+      <div id="book-list"></div>
+    </div>
+
+  </main>
+</div>
+
+<script src="{{ url_for('static', filename='js/prayer.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

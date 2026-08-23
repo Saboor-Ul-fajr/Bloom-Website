@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: bloom
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT app:app
+    envVars:
+      - key: BLOOM_ADMIN_USERNAME
+        sync: false
+      - key: BLOOM_ADMIN_PASSWORD
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bloom-db
+          property: connectionString
+
+databases:
+  - name: bloom-db
+    databaseName: bloom
+    user: bloom
+    plan: free

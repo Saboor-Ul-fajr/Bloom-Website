@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bloom — Sign In</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <span class="brand-icon">🌸</span>
+      <h1>Bloom</h1>
+      <p>Your daily life garden</p>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">Sign In</button>
+      <button class="auth-tab" id="tab-signup" onclick="switchTab('signup')">Sign Up</button>
+    </div>
+
+    <!-- Login -->
+    <div class="form-section active" id="section-login">
+      <div class="field">
+        <label>Username</label>
+        <input type="text" id="login-user" placeholder="Enter your username" autocomplete="username">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="login-pass" placeholder="Enter your password" autocomplete="current-password">
+      </div>
+      <button class="btn-auth" onclick="doLogin()">Sign In 💚</button>
+      <div class="auth-error" id="login-err"></div>
+    </div>
+
+    <!-- Signup -->
+    <div class="form-section" id="section-signup">
+      <div class="field">
+        <label>Choose a Username</label>
+        <input type="text" id="signup-user" placeholder="e.g. fatima123" autocomplete="username">
+      </div>
+      <div class="field">
+        <label>Email Address</label>
+        <input type="email" id="signup-email" placeholder="you@example.com" autocomplete="email" required>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="signup-pass" placeholder="At least 4 characters" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label>Confirm Password</label>
+        <input type="password" id="signup-pass2" placeholder="Repeat password" autocomplete="new-password">
+      </div>
+      <button class="btn-auth" onclick="doSignup()">Create Account 🌸</button>
+      <div class="auth-error" id="signup-err"></div>
+    </div>
+
+    <div class="auth-switch" id="auth-switch-hint">
+      No account? <span onclick="switchTab('signup')">Sign up free</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  function switchTab(tab) {
+    document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+    document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
+    document.getElementById('section-login').classList.toggle('active', tab === 'login');
+    document.getElementById('section-signup').classList.toggle('active', tab === 'signup');
+    const hint = document.getElementById('auth-switch-hint');
+    hint.innerHTML = tab === 'login'
+      ? 'No account? <span onclick="switchTab(\'signup\')">Sign up free</span>'
+      : 'Have an account? <span onclick="switchTab(\'login\')">Sign in</span>';
+  }
+
+  async function doLogin() {
+    const username = document.getElementById('login-user').value.trim();
+    const password = document.getElementById('login-pass').value;
+    document.getElementById('login-err').textContent = '';
+    const res = await fetch('/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    }).then(r => r.json());
+    if (res.ok) window.location.href = res.redirect;
+    else document.getElementById('login-err').textContent = res.error;
+  }
+
+  async function doSignup() {
+    const username = document.getElementById('signup-user').value.trim();
+    const email = document.getElementById('signup-email').value.trim().toLowerCase();
+    const password = document.getElementById('signup-pass').value;
+    const confirm  = document.getElementById('signup-pass2').value;
+    document.getElementById('signup-err').textContent = '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      document.getElementById('signup-err').textContent = 'Please enter a valid email address.';
+      return;
+    }
+    const res = await fetch('/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, email, password, confirm })
+    }).then(r => r.json());
+    if (res.ok) window.location.href = res.redirect;
+    else document.getElementById('signup-err').textContent = res.error;
+  }
+
+  // Enter key support
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const loginActive = document.getElementById('section-login').classList.contains('active');
+      if (loginActive) doLogin(); else doSignup();
+    }
+  });
+</script>
+</body>
+</html>

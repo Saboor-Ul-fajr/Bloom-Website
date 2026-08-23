@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bloom — Admin Panel</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="admin-wrapper">
+  <div class="admin-topbar">
+    <div class="admin-brand">
+      <span>🌸</span> Bloom — Admin Panel
+    </div>
+    <div style="display:flex;gap:1rem;align-items:center;color:var(--white-pure);font-size:0.85rem">
+      <span>{{ admin.username }} · {{ admin.role.replace('_', ' ').title() }}</span>
+      <a href="/admin/logout" style="color:var(--straw-blush);font-weight:700;text-decoration:none">Sign out →</a>
+    </div>
+  </div>
+
+  <div class="admin-grid">
+
+    <!-- Users List -->
+    <div class="admin-card admin-users-card">
+      <h3>👥 Users <span style="font-size:0.7rem;font-weight:500">(metadata only)</span></h3>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <input class="admin-input" id="user-search" placeholder="Search name or email">
+        <select class="admin-input" id="user-status"><option value="">All statuses</option><option value="active">Active</option><option value="suspended">Suspended</option></select>
+      </div>
+      <div id="admin-users"><p style="color:rgba(255,255,255,0.4);font-size:0.85rem">Loading...</p></div>
+    </div>
+
+    <!-- Stats -->
+    <div class="admin-card admin-stats-card">
+      <h3>📊 App Statistics</h3>
+      <div id="admin-stats"></div>
+    </div>
+
+    <!-- Announcement -->
+    <div class="admin-card admin-announcement-card">
+      <h3>📢 Broadcast Announcement</h3>
+      <textarea class="admin-input admin-textarea" id="announce-text" placeholder="Write a message visible to all users on their dashboard..."></textarea>
+      <button class="btn-admin" onclick="sendAnnouncement()">Send to All Users</button>
+      <div class="admin-msg" id="announce-msg"></div>
+    </div>
+
+    {% if admin.role == 'super_admin' %}
+    <!-- Reset Password -->
+    <div class="admin-card admin-reset-card">
+      <h3>🔑 Reset User Password</h3>
+      <input class="admin-input" type="text" id="reset-user" placeholder="Username">
+      <input class="admin-input" type="password" id="reset-pass" placeholder="New Password">
+      <button class="btn-admin" onclick="resetPassword()">Reset Password</button>
+      <div class="admin-msg" id="reset-msg"></div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<script>
+async function api(url, method='GET', body=null) {
+  const opts = { method, headers: {'Content-Type':'application/json'} };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(url, opts);
+  return r.json();
+}
+
+async function loadUsers() {
+  const params = new URLSearchParams({
+    search: document.getElementById('user-search').value,
+    status: document.getElementById('user-status').value
+  });
+  const users = await api('/api/admin/users?' + params);
+  const el = document.getElementById('admin-users');
+  if (!users.length) { el.innerHTML = '<p style="color:rgba(255,255,255,0.4);font-size:0.85rem">No users yet.</p>'; return; }
+  el.innerHTML = users.map(u => `
+    <div class="user-row-admin">
+      <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#E8365D,#3D7A44);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:0.85rem;flex-shrink:0">${u.username[0].toUpperCase()}</div>
+      <div style="flex:1">
+        <div class="u-name">${escHtml(u.username)} <small>${u.status}</small></div>
+        <div class="u-date">${escHtml(u.email)} · Joined ${u.joined} · Last login: ${u.last_login}</div>
+      </div>
+      {% if admin.role == 'super_admin' %}
+      <button class="btn-danger-sm" onclick="setUserStatus(${u.id}, '${u.status === 'active' ? 'suspended' : 'active'}')">${u.status === 'active' ? 'Suspend' : 'Unban'}</button>
+      <button class="btn-danger-sm" onclick="deleteUser(${u.id},'${u.username}')">Delete</button>
+      {% endif %}
+    </div>`).join('');
+}
+
+function escHtml(value) {
+  return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+async function setUserStatus(id, status) {
+  await api(`/api/admin/users/${id}/status`, 'POST', { status });
+  loadUsers();
+}
+
+async function loadStats() {
+  const s = await api('/api/admin/stats');
+  document.getElementById('admin-stats').innerHTML = `
+    <div class="admin-stat-row"><span>👥 Total Users</span><span class="asval">${s.users}</span></div>
+    <div class="admin-stat-row"><span>✅ Task items (aggregate)</span><span class="asval">${s.task_items}</span></div>
+    <div class="admin-stat-row"><span>📓 Journal entries (aggregate)</span><span class="asval">${s.journal_entries}</span></div>
+    <div class="admin-stat-row"><span>🕌 Prayer logs (aggregate)</span><span class="asval">${s.prayer_logs}</span></div>
+    <div class="admin-stat-row"><span>📚 Books Added</span><span class="asval">${s.books}</span></div>
+    <div class="admin-stat-row"><span>💰 Money users today</span><span class="asval">${s.money_users_today}</span></div>
+    <div class="admin-stat-row" style="border:none"><span>🌙 Habits (aggregate)</span><span class="asval">${s.habits}</span></div>
+  `;
+}
+
+async function sendAnnouncement() {
+  const text = document.getElementById('announce-text').value.trim();
+  if (!text) return;
+  await api('/api/admin/announce', 'POST', { text });
+  document.getElementById('announce-text').value = '';
+  document.getElementById('announce-msg').textContent = '✅ Announcement sent to all users!';
+  setTimeout(() => document.getElementById('announce-msg').textContent = '', 3000);
+}
+
+async function resetPassword() {
+  const username = document.getElementById('reset-user').value.trim();
+  const password = document.getElementById('reset-pass').value;
+  const res = await api('/api/admin/reset_password', 'POST', { username, password });
+  const msg = document.getElementById('reset-msg');
+  if (res.ok) {
+    msg.textContent = '✅ Password reset successfully!';
+    document.getElementById('reset-user').value = '';
+    document.getElementById('reset-pass').value = '';
+  } else msg.textContent = '❌ ' + (res.error || 'Failed');
+  setTimeout(() => msg.textContent = '', 3000);
+}
+
+async function deleteUser(id, name) {
+  if (!confirm(`Remove user "${name}"? This will delete all their data permanently.`)) return;
+  await api(`/api/admin/delete_user/${id}`, 'DELETE');
+  loadUsers(); loadStats();
+}
+
+document.getElementById('user-search').addEventListener('input', loadUsers);
+document.getElementById('user-status').addEventListener('change', loadUsers);
+loadUsers();
+loadStats();
+</script>
+</body>
+</html>
