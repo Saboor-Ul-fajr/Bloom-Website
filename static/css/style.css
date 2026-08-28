@@ -18,6 +18,14 @@
 .money-summary-tabs { display: flex; gap: 0.45rem; flex-wrap: wrap; margin: 0.7rem 0 1rem; }
 .money-summary-tab { border: 1px solid var(--straw-blush); background: var(--white-pure); color: var(--text-mid); border-radius: 999px; padding: 0.45rem 0.8rem; font: inherit; font-size: 0.78rem; font-weight: 800; cursor: pointer; }
 .money-summary-tab.active { background: var(--straw-core); color: var(--white-pure); }
+.money-month-select { max-width: 11rem; padding: 0.45rem 0.65rem; font-size: 0.78rem; }
+.money-delete-button { display: grid; place-items: center; width: 2rem; height: 2rem; padding: 0; border: 1px solid var(--straw-blush); border-radius: 50%; background: var(--white-pure); color: var(--straw-deep); font-size: 0.9rem; cursor: pointer; }
+.money-delete-button:hover { background: var(--straw-core); color: var(--white-pure); }
+.money-delete-wrap { position: relative; }
+.money-delete-months { position: absolute; z-index: 5; top: calc(100% + 0.4rem); right: 0; min-width: 11rem; padding: 0.35rem; border: 1px solid var(--straw-blush); border-radius: var(--radius-sm); background: var(--white-pure); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
+.money-delete-months[hidden] { display: none; }
+.money-delete-month { display: block; width: 100%; padding: 0.45rem 0.6rem; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-mid); text-align: left; font: 700 0.78rem 'Nunito', sans-serif; cursor: pointer; }
+.money-delete-month:hover { background: var(--straw-mist); color: var(--straw-deep); }
 .money-summary-heading { color: var(--text-muted); font-weight: 800; font-size: 0.8rem; text-transform: uppercase; }
 .money-summary-total { color: var(--straw-deep); font: 800 2rem 'Quicksand', sans-serif; margin: 0.2rem 0; }
 .money-summary-note { color: var(--text-muted); font-size: 0.78rem; }

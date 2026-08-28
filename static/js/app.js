@@ -190,10 +190,14 @@ function dismissAnnouncement(id) {
 async function renderDashboard() {
   const pg = $('#page-dashboard');
   if (!pg) return;
-  const h = todayDT().getHours();
-  const greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : h < 20 ? 'Good evening' : 'Good night';
+  const now = todayDT();
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  const greet = minutes >= 360 && minutes <= 780 ? 'Good morning'
+    : minutes >= 781 && minutes <= 1010 ? 'Good afternoon'
+    : minutes >= 1011 && minutes <= 1140 ? 'Good evening'
+    : 'Good night';
   const greetEl = $('#dash-greeting');
-  if (greetEl) greetEl.textContent = greet + '! Here is your daily bloom. 🌸';
+  if (greetEl) greetEl.textContent = greet + '!';
 
   // stats
   const [prayers, tasks, thoughts, books, habits] = await Promise.all([
@@ -237,7 +241,7 @@ async function renderDashboard() {
     dt.innerHTML = upcoming.length
       ? upcoming.map(t => `<div class="task-item ${t.done ? 'done' : ''}">
           <div class="task-check-box ${t.done?'done':''}" onclick="toggleTask(${t.id})">${t.done?'✓':''}</div>
-          <div style="flex:1"><div class="task-text-main ${t.done ? 'done' : ''}">${escHtml(t.text)}</div>${t.deadline?`<div class="task-deadline ${isOverdue(t.deadline)?'task-overdue':''}">${fmtDeadline(t.deadline)}</div>`:''}${t.reminder?`<div class="task-reminder">🔔 ${fmtDeadline(t.reminder)}</div>`:''}</div>
+          <div style="flex:1"><div class="task-text-main ${t.done ? 'done' : ''}">${escHtml(t.text)}</div>${t.deadline?`<div class="task-deadline ${isOverdue(t.deadline)?'task-overdue':''}">${fmtDeadline(t.deadline)}</div>`:''}${t.reminder?`<div class="task-reminder">🔔 ${fmtReminder(t.reminder)}</div>`:''}</div>
           <span class="priority-pill p-${t.priority}">${t.priority}</span>
         </div>`).join('')
       : '<div class="empty-state"><span class="empty-icon">😊</span><p>All clear! No pending tasks.</p></div>';
@@ -341,7 +345,7 @@ async function renderTasks() {
         <div style="flex:1">
           <div class="task-text-main ${t.done?'done':''}">${escHtml(t.text)}</div>
           ${t.deadline ? `<div class="task-deadline ${isOverdue(t.deadline)&&!t.done?'task-overdue':''}">${fmtDeadline(t.deadline)}</div>` : ''}
-          ${t.reminder ? `<div class="task-reminder">🔔 ${fmtDeadline(t.reminder)}</div>` : ''}
+          ${t.reminder ? `<div class="task-reminder">🔔 ${fmtReminder(t.reminder)}</div>` : ''}
         </div>
         <span class="priority-pill p-${t.priority}">${t.priority}</span>
         <button class="btn-icon" onclick="deleteTask(${t.id})">🗑️</button>
@@ -790,16 +794,7 @@ async function renderMoneyDetails() {
 }
 
 async function clearPreviousMonthDetails() {
-  const prev = { month: mMonth, year: mYear, mode: 'all-previous' };
-  const label = `all earlier months before ${monthLabel(mMonth, mYear)}`;
-  if (!confirm(`Clear all money details for ${label}?`)) return;
-  const result = await api('/api/money/clear-month', 'POST', prev);
-  allMoneyHistory = await api('/api/money?all=1');
-  moneyData = await api(`/api/money?month=${mMonth}&year=${mYear}`);
-  renderMoneyBalance();
-  renderMonthlySummary();
-  renderMoneyDetails();
-  showToast('Cleared', `${result.cleared || 0} entries removed.`);
+  toggleMoneyDeleteMonths();
 }
 
 function changeMoneyMonth(dir) {
@@ -821,10 +816,10 @@ function changeMoneyDetailsMonth(dir) {
 let moneyState = null;
 let moneyHistory = [];
 // Set a date such as '2026-08-24' for rollover testing; leave empty for the real local date.
-const money_test_date = '';
+const MONEY_LOG_TEST_DATE = ''; // Set to YYYY-MM-DD only while testing a past date
 const moneyBoxes = ['breakfast', 'lunch', 'dinner', 'snacks', 'others'];
 
-function moneyWorkingDate() { return money_test_date || today(); }
+function moneyWorkingDate() { return MONEY_LOG_TEST_DATE || today(); }
 
 async function loadMoneyState() {
   const result = await api(`/api/money?state=1&all=1&today_date=${moneyWorkingDate()}`);
@@ -923,6 +918,14 @@ function renderWeeklySummary() {
 
 function moneyDayTotal(day) { return moneyBoxes.reduce((sum, box) => sum + (+day[box] || 0), 0); }
 
+function formatMoneyDate(dateString) {
+  const [year, month, day] = String(dateString).split('-').map(Number);
+  if (!year || !month || !day) return dateString;
+  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+  });
+}
+
 function moneyHistoryWithToday() {
   if (!moneyState || (!moneyState.today_saved && moneyDayTotal(moneyState) <= 0)) return moneyHistory;
   return [{ ...moneyState, date: moneyWorkingDate(), isToday: true }, ...moneyHistory.filter(day => day.date !== moneyWorkingDate())];
@@ -945,27 +948,62 @@ function renderMoneySummary(mode) {
   summaries.forEach(summary => {
     if (summary.classList.contains('money-history-summary')) {
       const start = mode === 'weekly' ? sevenDays[6].date : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-      const rows = moneyHistory.filter(day => day.date >= start);
+      const rows = moneyHistory.filter(day => mode === 'monthly'
+        ? day.date.startsWith(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
+        : day.date >= start);
       const totals = moneyBoxes.map(box => rows.reduce((sum, day) => sum + (+day[box] || 0), 0) + (+moneyState?.[box] || 0));
       summary.innerHTML = `<div class="money-summary-heading">${mode === 'weekly' ? 'This Week' : 'This Month'} Category Summary</div><div class="money-history-summary-values">${moneyBoxes.map((box, index) => `<span>${box}: Rs ${totals[index].toFixed(2)}</span>`).join('')}<strong>Total: Rs ${totals.reduce((sum, value) => sum + value, 0).toFixed(2)}</strong></div>`;
     } else {
-      const savedDays = sevenDays.filter(item => item.isSaved);
-      summary.innerHTML = `<div class="money-summary-heading">Last 7 Days</div>${savedDays.length ? `<div class="money-summary-table"><div class="money-summary-table-row money-summary-table-head"><span>Date</span><span>Breakfast</span><span>Lunch</span><span>Dinner</span></div>${savedDays.map(item => `<div class="money-summary-table-row"><span>${item.date}</span><span>Rs ${(+item.day.breakfast || 0).toFixed(2)}</span><span>Rs ${(+item.day.lunch || 0).toFixed(2)}</span><span>Rs ${(+item.day.dinner || 0).toFixed(2)}</span></div>`).join('')}</div>` : '<div class="money-summary-empty">No saved days in the last 7 days.</div>'}`;
+      const savedDays = sevenDays.filter(item => item.isSaved && moneyDayTotal(item.day) > 0);
+      summary.innerHTML = `<div class="money-summary-heading">Last 7 Days</div>${savedDays.length ? `<div class="money-summary-table"><div class="money-summary-table-row money-summary-table-head"><span>Date</span><span>Breakfast</span><span>Lunch</span><span>Dinner</span></div>${savedDays.map(item => `<div class="money-summary-table-row"><span>${formatMoneyDate(item.date)}</span><span>Rs ${(+item.day.breakfast || 0).toFixed(2)}</span><span>Rs ${(+item.day.lunch || 0).toFixed(2)}</span><span>Rs ${(+item.day.dinner || 0).toFixed(2)}</span></div>`).join('')}</div>` : '<div class="money-summary-empty">No spending in the last 7 days.</div>'}`;
     }
   });
 }
 
 async function renderMoneyDetails() { await loadMoneyState(); }
 
+function getSavedMoneyMonths() {
+  return [...new Set(moneyHistory
+    .filter(day => moneyDayTotal(day) > 0)
+    .map(day => day.date.slice(0, 7)))]
+    .sort()
+    .reverse();
+}
+
+function renderMoneyDeleteMonths() {
+  const menu = $('#money-delete-months');
+  if (!menu) return;
+  const months = getSavedMoneyMonths();
+  menu.innerHTML = months.length
+    ? months.map(month => `<button type="button" class="money-delete-month" onclick="deleteMoneyMonth('${month}')">${monthLabel(Number(month.slice(5)), Number(month.slice(0, 4)))}</button>`).join('')
+    : '<span class="money-delete-month">No saved months</span>';
+}
+
+function toggleMoneyDeleteMonths() {
+  const menu = $('#money-delete-months');
+  if (!menu) return;
+  renderMoneyDeleteMonths();
+  menu.hidden = !menu.hidden;
+}
+
+async function deleteMoneyMonth(monthValue) {
+  const [year, month] = monthValue.split('-').map(Number);
+  const label = monthLabel(month, year);
+  if (!confirm(`Delete all money details from ${label}? This cannot be undone.`)) return;
+  const result = await api('/api/money/clear-month', 'POST', { month, year });
+  $('#money-delete-months').hidden = true;
+  await loadMoneyState();
+  showToast('Cleared', `${result.cleared || 0} entries removed from ${label}.`);
+}
+
 function renderMoneyDetailsList() {
   const list = $('#money-details-list');
   if (!list) return;
-  const history = moneyHistoryWithToday();
+  const history = moneyHistoryWithToday().filter(day => moneyDayTotal(day) > 0);
   list.innerHTML = history.length ? history.map(day => {
-    const [year, month, date] = day.date.split('-').map(Number);
-    const label = new Date(year, month - 1, date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    const label = formatMoneyDate(day.date);
     const items = (day.custom || []).filter(item => item.name).map(item => `<div class="money-history-item"><span>${escHtml(item.name)}</span><strong>Rs ${(+item.amount || 0).toFixed(2)}</strong></div>`).join('');
-    return `<details class="money-history-row"${day.isToday ? ' open' : ''}><summary><span><small>${day.isToday ? 'CURRENT DAY' : 'SAVED DAY'}</small><b>${label}</b></span><strong class="money-history-total">Rs ${moneyDayTotal(day).toFixed(2)}</strong></summary><div class="money-history-values">${moneyBoxes.map(box => `<div class="money-history-category"><span>${box}</span><strong>Rs ${(+day[box] || 0).toFixed(2)}</strong></div>`).join('')}</div>${items ? `<div class="money-history-items"><small>Other items</small>${items}</div>` : ''}</details>`;
+    return `<details class="money-history-row"${day.isToday ? ' open' : ''}><summary><span><small>${day.isToday ? 'CURRENT DAY' : ''}</small><b>${label}</b></span><strong class="money-history-total">Rs ${moneyDayTotal(day).toFixed(2)}</strong></summary><div class="money-history-values">${moneyBoxes.map(box => `<div class="money-history-category"><span>${box}</span><strong>Rs ${(+day[box] || 0).toFixed(2)}</strong></div>`).join('')}</div>${items ? `<div class="money-history-items"><small>Other items</small>${items}</div>` : ''}</details>`;
   }).join('') : '<div class="empty-state"><p>No spending recorded yet.</p></div>';
 }
 
@@ -983,6 +1021,7 @@ async function saveMoneyDay() {
 
 function showMoneySummary(mode) {
   renderMoneySummary(mode);
+  renderMoneyDetailsList();
 }
 
 function changeMoneyMonth() { return loadMoneyState(); }
@@ -1073,6 +1112,11 @@ function fmtDeadline(dl) {
   if (!dl) return '';
   const d = new Date(dl);
   return '📅 ' + d.toLocaleString('default', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtReminder(dl) {
+  if (!dl) return '';
+  return new Date(dl).toLocaleString('default', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 function isOverdue(dl) {

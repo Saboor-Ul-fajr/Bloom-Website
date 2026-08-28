@@ -25,6 +25,7 @@ db.init_app(app)
 
 with app.app_context():
     db.create_all()
+    #24CS032
     # Keep existing SQLite installs usable when the five-box workflow is introduced.
     inspector = db.inspect(db.engine)
     columns = {column["name"] for column in inspector.get_columns("money_logs")}
@@ -683,22 +684,34 @@ def api_admin_delete_user(uid):
     if error: return error
     user = db.session.get(User, uid)
     if user:
-        Prayer.query.filter_by(user_id=uid).delete()
-        Thought.query.filter_by(user_id=uid).delete()
-        Task.query.filter_by(user_id=uid).delete()
-        for book in Book.query.filter_by(user_id=uid).all():
-            BookLog.query.filter_by(book_id=book.id).delete()
-        Book.query.filter_by(user_id=uid).delete()
-        for h in Habit.query.filter_by(user_id=uid).all():
-            HabitLog.query.filter_by(habit_id=h.id).delete()
-        Habit.query.filter_by(user_id=uid).delete()
-        for ml in MoneyLog.query.filter_by(user_id=uid).all():
-            CustomExpense.query.filter_by(money_log_id=ml.id).delete()
-        MoneyLog.query.filter_by(user_id=uid).delete()
-        MoneyState.query.filter_by(user_id=uid).delete()
-        PushSubscription.query.filter_by(user_id=uid).delete()
-        audit(admin, "delete_user", "user", uid)
-        db.session.delete(user); db.session.commit()
+        try:
+            Prayer.query.filter_by(user_id=uid).delete(synchronize_session=False)
+            Thought.query.filter_by(user_id=uid).delete(synchronize_session=False)
+            Task.query.filter_by(user_id=uid).delete(synchronize_session=False)
+            PushSubscription.query.filter_by(user_id=uid).delete(synchronize_session=False)
+
+            book_ids = [book.id for book in Book.query.filter_by(user_id=uid).all()]
+            if book_ids:
+                BookLog.query.filter(BookLog.book_id.in_(book_ids)).delete(synchronize_session=False)
+            Book.query.filter_by(user_id=uid).delete(synchronize_session=False)
+
+            habit_ids = [habit.id for habit in Habit.query.filter_by(user_id=uid).all()]
+            if habit_ids:
+                HabitLog.query.filter(HabitLog.habit_id.in_(habit_ids)).delete(synchronize_session=False)
+            Habit.query.filter_by(user_id=uid).delete(synchronize_session=False)
+
+            money_log_ids = [log.id for log in MoneyLog.query.filter_by(user_id=uid).all()]
+            if money_log_ids:
+                CustomExpense.query.filter(CustomExpense.money_log_id.in_(money_log_ids)).delete(synchronize_session=False)
+            MoneyLog.query.filter_by(user_id=uid).delete(synchronize_session=False)
+            MoneyState.query.filter_by(user_id=uid).delete(synchronize_session=False)
+
+            audit(admin, "delete_user", "user", uid)
+            db.session.delete(user)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
     return jsonify({"ok": True})
 
 @app.route("/api/admin/users/<int:uid>/status", methods=["POST"])

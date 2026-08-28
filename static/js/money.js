@@ -6,8 +6,13 @@
 window.MoneyModule = (function () {
   "use strict";
 
-  let mMonth = new Date().getMonth() + 1;
-  let mYear  = new Date().getFullYear();
+  const MONEY_LOG_TEST_DATE = ""; // Set to YYYY-MM-DD to test a specific date
+  const initialDate = MONEY_LOG_TEST_DATE
+    ? new Date(`${MONEY_LOG_TEST_DATE}T00:00:00`)
+    : new Date();
+  let mMonth = initialDate.getMonth() + 1;
+  let mYear  = initialDate.getFullYear();
+  let mDay   = initialDate.getDate();
   let moneyData  = [];    // array of day records from server
   let customItems = [];   // custom expense rows for selected day
 
@@ -33,7 +38,7 @@ window.MoneyModule = (function () {
     const days   = daysInMonth(mMonth, mYear);
     const today  = new Date().getDate();
     const sel    = document.getElementById("money-day-sel");
-    const curDay = sel.value || String(today);
+    const curDay = sel.value || (MONEY_LOG_TEST_DATE ? String(mDay) : String(today));
 
     sel.innerHTML = Array.from({ length: days }, (_, i) => {
       const d = i + 1;

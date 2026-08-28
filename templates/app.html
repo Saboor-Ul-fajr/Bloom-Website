@@ -72,7 +72,7 @@
       <div class="stats-grid" id="dash-stats"></div>
 
       <div class="card">
-        <div class="card-title">🕌 Today's Prayers — quick tap</div>
+        <div class="card-title">🕌 Today's Prayers</div>
         <div style="display:flex;gap:14px;flex-wrap:wrap" id="dash-prayers"></div>
       </div>
 
@@ -130,7 +130,7 @@
     <!-- ── THOUGHTS ── -->
     <div class="page" id="page-thoughts">
       <div class="page-header">
-        <div class="page-title">▣ Inner Whispers.</div>
+        <div class="page-title">💭 Inner Whispers.</div>
         <div class="page-subtitle">A cozy corner for emotions.</div>
       </div>
 
@@ -279,6 +279,10 @@
         <div class="money-summary-tabs">
           <button class="money-summary-tab active" data-summary="weekly" onclick="showMoneySummary('weekly')">Weekly Summary</button>
           <button class="money-summary-tab" data-summary="monthly" onclick="showMoneySummary('monthly')">Monthly Summary</button>
+          <div class="money-delete-wrap">
+            <button class="money-delete-button" type="button" onclick="toggleMoneyDeleteMonths()" aria-label="Choose a saved month to delete" title="Choose a saved month to delete">🗑</button>
+            <div id="money-delete-months" class="money-delete-months" hidden></div>
+          </div>
         </div>
       </div>
 
