@@ -15,8 +15,9 @@ window.PrayerModule = (function () {
   "use strict";
 
   const PRAYERS = ["Fajr", "Zuhr", "Asr", "Maghrib", "Isha"];
+  const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.content || '';
   // Set a date such as "2026-09-07" to test streak milestones; leave empty for today.
-  const prayer_test_date = "2026-08-24";
+  const prayer_test_date = "";
 
   function referenceDate() {
     return prayer_test_date ? new Date(`${prayer_test_date}T12:00:00`) : new Date();
@@ -248,7 +249,7 @@ window.PrayerModule = (function () {
 
     await fetch("/api/prayers", {
       method:  "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken() },
       body:    JSON.stringify({ date: ds, name, done: rec ? !rec.done : true }),
     });
 
@@ -267,7 +268,7 @@ window.PrayerModule = (function () {
 
     await fetch("/api/prayers", {
       method:  "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken() },
       body:    JSON.stringify({ date: today, name, done: rec ? !rec.done : true }),
     });
   }

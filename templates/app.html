@@ -3,11 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ session.get('csrf_token', '') }}">
   <title>Bloom 🌸</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
 </head>
 <body data-page="{{ page }}">
+
+<div class="notification-prompt" id="notification-prompt" hidden>
+  <div class="notification-prompt-card" role="dialog" aria-modal="true" aria-labelledby="notification-prompt-title">
+    <div class="notification-prompt-icon">🔔</div>
+    <h2 id="notification-prompt-title">Enable Bloom notifications?</h2>
+    <p>Get reminders for your tasks and daily check-ins.</p>
+    <div class="notification-prompt-actions">
+      <button class="btn btn-ghost-pink" id="notification-prompt-later" type="button">Not now</button>
+      <button class="btn btn-green" id="notification-prompt-enable" type="button">Enable</button>
+    </div>
+  </div>
+</div>
+
+<div class="guide-overlay" id="guide-overlay" hidden>
+  <div class="guide-card" role="dialog" aria-modal="true" aria-labelledby="guide-title">
+    <button class="guide-close" id="guide-close" type="button" aria-label="Close guide">×</button>
+    <div class="guide-progress" id="guide-progress"></div>
+    <div class="guide-step-icon" id="guide-step-icon"></div>
+    <div class="guide-kicker" id="guide-kicker">Welcome to Bloom</div>
+    <h2 id="guide-title">Your daily life garden</h2>
+    <p class="guide-intro" id="guide-intro">Let’s take a quick tour of Bloom.</p>
+    <div class="guide-tip" id="guide-tip"></div>
+    <div class="guide-actions">
+      <button class="btn btn-ghost-pink" id="guide-back" type="button">Back</button>
+      <button class="btn btn-pink" id="guide-next" type="button">Next</button>
+    </div>
+  </div>
+</div>
 
 <!-- Toast Notification -->
 <div class="toast" id="toast">
@@ -46,11 +75,9 @@
     <a class="nav-item" data-page="prayer"    onclick="showPage('prayer')"><span class="n-icon">🕌</span>Prayers</a>
     <a class="nav-item" data-page="thoughts"  onclick="showPage('thoughts')"><span class="n-icon">📓</span>Thoughts</a>
     <a class="nav-item" data-page="tasks"     onclick="showPage('tasks')"><span class="n-icon">✅</span>Tasks</a>
-
-    <div class="nav-section-label">Track</div>
     <a class="nav-item" data-page="habits"    onclick="showPage('habits')"><span class="n-icon">🌙</span>Daily Habits</a>
-    <a class="nav-item" data-page="money"     onclick="showPage('money')"><span class="n-icon">💸</span>Money Log</a>
-    <a class="nav-item" data-page="books"     onclick="showPage('books')"><span class="n-icon">📚</span>Books</a>
+    <a class="nav-item" data-page="money"     onclick="showPage('money')"><span class="n-icon">🥞</span>Bites and Buys</a>
+    <a class="nav-item" data-page="books"     onclick="showPage('books')"><span class="n-icon">📜</span>Books</a>
 
     <div class="sidebar-footer">
       <a class="nav-item account-nav-item" data-page="account" onclick="showPage('account')"><span class="account-avatar">{{ user.username[0].upper() }}</span>Account</a>
@@ -63,8 +90,7 @@
     <!-- ── DASHBOARD ── -->
     <div class="page" id="page-dashboard">
       <div class="page-header">
-        <div class="page-title">Good day! 🌸</div>
-        <div class="page-subtitle" id="dash-greeting">Welcome back, {{ user.username }}.</div>
+        <div class="page-title" id="dash-greeting">Good morning</div>
       </div>
 
       <div id="announcement-area"></div>
@@ -85,7 +111,7 @@
     <!-- ── ACCOUNT ── -->
     <div class="page" id="page-account">
       <div class="page-header">
-        <div class="page-title">👤 Account</div>
+        <div class="page-title"> Account</div>
         <div class="page-subtitle">Your account and appearance settings</div>
       </div>
 
@@ -95,6 +121,7 @@
         <div class="account-page-username">{{ user.username }}</div>
         <button class="account-notification-button" id="enable-notifications" type="button">Enable phone notifications</button>
         <div class="account-notification-status" id="notification-status"></div>
+        <button class="account-guide-button" id="open-guide" type="button">View Bloom guide</button>
         <a class="account-signout" href="/logout">Sign out</a>
       </div>
 
@@ -104,7 +131,7 @@
     <div class="page" id="page-prayer">
       <div class="page-header">
         <div class="page-title">🕌 Prayer Tracker</div>
-        <div class="page-subtitle">Track all 5 daily prayers across the whole month</div>
+        <div class="page-subtitle">Stay consistent with your daily Salah</div>
       </div>
 
       <div class="month-nav">
@@ -131,7 +158,7 @@
     <div class="page" id="page-thoughts">
       <div class="page-header">
         <div class="page-title">💭 Inner Whispers.</div>
-        <div class="page-subtitle">A cozy corner for emotions.</div>
+        <div class="page-subtitle">Pen down what’s on your mind.</div>
       </div>
 
       <div class="card card-pink">
@@ -150,8 +177,8 @@
     <!-- ── TASKS ── -->
     <div class="page" id="page-tasks">
       <div class="page-header">
-        <div class="page-title">✅ Tasks</div>
-        <div class="page-subtitle">Create tasks with deadlines and priorities</div>
+        <div class="page-title">🎀 Task Garden</div>
+        <div class="page-subtitle">Plant your priorities, Set your due dates, and watch things get done.</div>
       </div>
 
       <div class="card card-pink">
@@ -171,8 +198,8 @@
           <div>
             <div style="font-size:0.8rem;font-weight:700;color:var(--text-muted);margin-bottom:6px">Priority</div>
             <select id="task-priority" style="width:100%">
-              <option value="medium">Medium</option>
               <option value="high">High</option>
+              <option value="medium" selected>Medium</option>
               <option value="low">Low</option>
             </select>
           </div>
@@ -192,8 +219,8 @@
     <!-- ── HABITS ── -->
     <div class="page" id="page-habits">
       <div class="page-header">
-        <div class="page-title">🌙 Daily Habits</div>
-        <div class="page-subtitle">Build streaks with your recurring monthly routines</div>
+        <div class="page-title">🌙 Routines</div>
+        <div class="page-subtitle">Track your daily rhythm and celebrate every small streak.</div>
       </div>
 
       <div class="card card-green">
@@ -209,11 +236,11 @@
     <!-- ── MONEY ── -->
     <div class="page" id="page-money">
       <div class="page-header">
-        <div class="money-title-row"><div class="page-title">💸 Money Log</div><button class="money-history-button" onclick="showPage('money-details')" aria-label="Open complete history">↗</button></div>
-        <div class="page-subtitle">Track daily spending — meals, snacks and extras</div>
+        <div class="money-title-row"><div class="page-title">🥞 Bites & Buys</div><button class="money-history-button" onclick="showPage('money-details')" aria-label="History" title="History">↗</button></div>
+        <div class="page-subtitle">Track your daily meals, quick snacks, and impulse buys.</div>
       </div>
 
-      <div class="money-today-label"><span class="money-today-kicker">Your day</span><strong id="money-today-date">—</strong></div>
+      <div class="money-today-label"><span class="money-today-kicker">Today</span><strong id="money-today-date">—</strong></div>
 
       <div class="money-balance-grid">
         <div class="money-balance-card">
@@ -223,7 +250,7 @@
         <div class="money-balance-card">
           <div class="money-balance-label">Add Money</div>
           <div class="money-add-row">
-            <input class="money-add-input" type="number" id="money-add-amount" min="0" placeholder="Rs 0">
+            <input class="money-add-input" type="number" id="money-add-amount" min="0" step="0.01" inputmode="numeric" placeholder="Rs 0" oninput="this.value = this.value.replace(/[^\d.]/g, '')">
             <button class="btn btn-green btn-sm" onclick="addMoneyToBalance()">Add</button>
             <button class="btn btn-sm" onclick="clearMoneyBalance()">Delete Total</button>
           </div>
@@ -269,12 +296,12 @@
     <!-- ── MONEY DETAILS ── -->
     <div class="page" id="page-money-details">
       <div class="page-header">
-        <div class="page-title">🌷 Money Details</div>
-        <div class="page-subtitle">A cozy look at every spending note from your saved history</div>
+        <div class="page-title">🌷 Financial Diary</div>
+        <div class="page-subtitle">Look back on all your past saved purchases.</div>
       </div>
 
       <div class="money-details-topbar">
-        <button class="btn btn-sm" style="background:var(--straw-cream);color:var(--straw-deep);border:1px solid var(--straw-blush)" onclick="showPage('money')">← Back to money log</button>
+        <button class="btn btn-sm" style="background:var(--straw-cream);color:var(--straw-deep);border:1px solid var(--straw-blush)" onclick="showPage('money')">← Back to Bites and Buys </button>
         <div class="money-details-title">Complete History</div>
         <div class="money-summary-tabs">
           <button class="money-summary-tab active" data-summary="weekly" onclick="showMoneySummary('weekly')">Weekly Summary</button>
@@ -287,7 +314,7 @@
       </div>
 
       <div class="money-details-card">
-        <div class="money-history-intro"><span class="money-history-icon">₹</span><div><strong>Your spending journal</strong><p>Every saved day, organized from newest to oldest.</p></div></div>
+        <div class="money-history-intro"><span class="money-history-icon">Rs</span><div><strong>Spending journal</strong><p>Saving all your troubles.</p></div></div>
         <div class="money-summary-content money-history-summary"></div>
         <div id="money-details-list" class="money-details-list"></div>
       </div>
@@ -296,7 +323,7 @@
     <!-- ── BOOKS ── -->
     <div class="page" id="page-books">
       <div class="page-header">
-        <div class="page-title">📚 Reading Tracker</div>
+        <div class="page-title">📜 Quiet Chapters</div>
         <div class="page-subtitle">Log your reading, one page at a time</div>
       </div>
 

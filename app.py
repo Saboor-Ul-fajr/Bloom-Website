@@ -1,17 +1,25 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from werkzeug.security import generate_password_hash, check_password_hash
 from database.db import db, User, AdminUser, AuditLog, Prayer, Thought, Task, PushSubscription, Habit, HabitLog, MoneyLog, MoneyState, CustomExpense, Book, BookLog, Announcement
 from datetime import datetime, date, timedelta
 import os
 import json
 import re
+import secrets
+import hmac
 import threading
 import time
 from pywebpush import webpush, WebPushException
 from sqlalchemy import or_
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "local-development-secret-change-me")
+app_environment = os.environ.get("APP_ENV", "development").lower()
+secret_key = os.environ.get("SECRET_KEY")
+if app_environment == "production" and not secret_key:
+    raise RuntimeError("SECRET_KEY must be configured in production.")
+app.secret_key = secret_key or secrets.token_hex(32)
 database_url = os.environ.get("DATABASE_URL", "sqlite:///bloom.db")
 if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql+psycopg2://", 1)
@@ -22,6 +30,12 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
 
 db.init_app(app)
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    storage_uri=os.environ.get("RATELIMIT_STORAGE_URI", "memory://"),
+    strategy="fixed-window",
+)
 
 with app.app_context():
     db.create_all()
@@ -96,46 +110,68 @@ def audit(admin, action, record_type=None, record_id=None):
     db.session.add(AuditLog(admin_id=admin.id, admin_name=admin.username,
                              action=action, record_type=record_type, record_id=record_id))
 
+@app.before_request
+def protect_state_changes():
+    if "csrf_token" not in session:
+        session["csrf_token"] = secrets.token_urlsafe(32)
+    if request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
+        return None
+    if request.endpoint in {"login", "signup", "admin_login"}:
+        return None
+    provided = request.headers.get("X-CSRF-Token", "")
+    expected = session.get("csrf_token", "")
+    if not expected or not provided or not hmac.compare_digest(provided, expected):
+        return jsonify({"ok": False, "error": "Invalid security token. Refresh the page and try again."}), 403
+    return None
+
 # ─────────────────── auth ───────────────────
 @app.route("/", methods=["GET"])
 def index():
+    if current_admin():
+        return redirect(url_for("admin"))
     if logged_in():
         return redirect(url_for("dashboard"))
     return render_template("auth.html")
 
 @app.route("/login", methods=["POST"])
+@limiter.limit("5 per minute")
 def login():
-    data = request.get_json()
+    data = request.get_json() or {}
     username = data.get("username", "").strip()
     password = data.get("password", "")
+
+    admin = AdminUser.query.filter_by(username=username).first()
+    if admin and admin.active and check_password_hash(admin.password_hash, password):
+        session.clear()
+        session["admin_id"] = admin.id
+        admin.last_login = datetime.utcnow()
+        db.session.commit()
+        return jsonify({"ok": True, "redirect": "/admin", "role": "admin"})
 
     user = User.query.filter_by(username=username).first()
     if not user or user.status != "active" or not check_password_hash(user.password_hash, password):
         return jsonify({"ok": False, "error": "Invalid username or password."})
 
+    session.clear()
     session["user_id"] = user.id
     user.last_login = datetime.utcnow()
     db.session.commit()
-    return jsonify({"ok": True, "redirect": "/dashboard"})
+    return jsonify({"ok": True, "redirect": "/dashboard", "role": "user"})
+
+@app.errorhandler(429)
+def login_rate_limited(error):
+    return jsonify({"ok": False, "error": "Too many login attempts. Please wait a minute and try again."}), 429
 
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "GET":
-        return render_template("admin_login.html")
-    data = request.get_json() or {}
-    admin = AdminUser.query.filter_by(username=data.get("username", "").strip()).first()
-    if not admin or not admin.active or not check_password_hash(admin.password_hash, data.get("password", "")):
-        return jsonify({"ok": False, "error": "Invalid admin credentials."}), 401
-    session.clear()
-    session["admin_id"] = admin.id
-    admin.last_login = datetime.utcnow()
-    db.session.commit()
-    return jsonify({"ok": True, "redirect": "/admin"})
+        return redirect(url_for("index"))
+    return login()
 
 @app.route("/admin/logout")
 def admin_logout():
     session.clear()
-    return redirect(url_for("admin_login"))
+    return redirect(url_for("index"))
 
 @app.route("/signup", methods=["POST"])
 def signup():
@@ -162,7 +198,7 @@ def signup():
     db.session.add(user)
     db.session.commit()
     session["user_id"] = user.id
-    return jsonify({"ok": True, "redirect": "/dashboard"})
+    return jsonify({"ok": True, "redirect": "/dashboard?welcome=1"})
 
 @app.route("/logout")
 def logout():
@@ -523,7 +559,23 @@ def api_money_post():
             if box in data:
                 setattr(state, box, max(float(data.get(box, 0) or 0), 0))
         if "other_items" in data:
-            state.other_items = json.dumps(data["other_items"])
+            cleaned_items = []
+            for item in (data["other_items"] or []):
+                if not isinstance(item, dict):
+                    continue
+                name = str(item.get("name", "") or "").strip()
+                amount = float(item.get("amount", 0) or 0)
+                if name or amount > 0:
+                    cleaned_items.append({"name": name, "amount": amount})
+            state.other_items = json.dumps(cleaned_items)
+            log = MoneyLog.query.filter_by(user_id=user.id, date=d).first()
+            if not log:
+                log = MoneyLog(user_id=user.id, date=d)
+                db.session.add(log)
+            CustomExpense.query.filter_by(money_log_id=log.id).delete()
+            for item in cleaned_items:
+                if item.get("name"):
+                    db.session.add(CustomExpense(money_log_id=log.id, name=item["name"], amount=float(item.get("amount", 0) or 0)))
         state.today_saved = data.get("action") == "save-today"
     db.session.commit()
     return jsonify({"ok": True})
@@ -787,6 +839,9 @@ def reminder_worker():
         with app.app_context():
             send_due_reminders()
         time.sleep(30)
+
+if os.environ.get("ENABLE_REMINDER_WORKER", "").lower() == "true":
+    threading.Thread(target=reminder_worker, daemon=True, name="bloom-reminder-worker").start()
 
 if __name__ == "__main__":
     threading.Thread(target=reminder_worker, daemon=True).start()

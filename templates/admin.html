@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ session.get('csrf_token', '') }}">
   <title>Bloom — Admin Panel</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
@@ -62,6 +63,7 @@
 <script>
 async function api(url, method='GET', body=null) {
   const opts = { method, headers: {'Content-Type':'application/json'} };
+  if (method !== 'GET') opts.headers['X-CSRF-Token'] = document.querySelector('meta[name="csrf-token"]')?.content || '';
   if (body) opts.body = JSON.stringify(body);
   const r = await fetch(url, opts);
   return r.json();
@@ -84,9 +86,12 @@ async function loadUsers() {
       </div>
       {% if admin.role == 'super_admin' %}
       <button class="btn-danger-sm" onclick="setUserStatus(${u.id}, '${u.status === 'active' ? 'suspended' : 'active'}')">${u.status === 'active' ? 'Suspend' : 'Unban'}</button>
-      <button class="btn-danger-sm" onclick="deleteUser(${u.id},'${u.username}')">Delete</button>
+      <button class="btn-danger-sm" data-delete-user="${u.id}" data-user-name="${escHtml(u.username)}">Delete</button>
       {% endif %}
     </div>`).join('');
+  el.querySelectorAll('[data-delete-user]').forEach(button => {
+    button.addEventListener('click', () => deleteUser(button.dataset.deleteUser, button.dataset.userName));
+  });
 }
 
 function escHtml(value) {

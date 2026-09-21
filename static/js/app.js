@@ -7,8 +7,10 @@ const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 const todayDT = () => new Date();
+const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.content || '';
 const api = async (url, method = 'GET', body = null) => {
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (method !== 'GET') opts.headers['X-CSRF-Token'] = csrfToken();
   if (body) opts.body = JSON.stringify(body);
   const r = await fetch(url, opts);
   return r.json();
@@ -148,6 +150,8 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#streak-celebration')?.addEventListener('click', event => {
     if (event.target.id === 'streak-celebration') closeStreakCelebration();
   });
+  setupNotificationPrompt();
+  setupGuide();
   registerPushWorker();
   $('#enable-notifications')?.addEventListener('click', enablePushNotifications);
 
@@ -164,6 +168,84 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ─── Announcement ─────────────────────────────
+function setupGuide() {
+  const overlay = $('#guide-overlay');
+  const closeButton = $('#guide-close');
+  const backButton = $('#guide-back');
+  const nextButton = $('#guide-next');
+  const progress = $('#guide-progress');
+  const icon = $('#guide-step-icon');
+  const kicker = $('#guide-kicker');
+  const title = $('#guide-title');
+  const intro = $('#guide-intro');
+  const tip = $('#guide-tip');
+  const accountButton = $('#open-guide');
+  if (!overlay || !closeButton || !backButton || !nextButton) return;
+
+  const steps = [
+    { icon: '🌸', kicker: 'Welcome to Bloom', title: 'Your daily life garden', intro: 'Let’s take a quick tour of Bloom.', tip: 'Use Next to visit each part of the app and learn what to do there.' },
+    { icon: '🕌', page: 'prayer', target: '.nav-item[data-page="prayer"]', kicker: 'Step 1 of 6', title: 'Track your prayers', intro: 'Open Prayers from the left menu.', tip: 'Mark today’s five prayers. Past days stay as history, and completing all five builds your streak.' },
+    { icon: '✅', page: 'tasks', target: '#task-input', kicker: 'Step 2 of 6', title: 'Create tasks', intro: 'Start with the Task field on the Tasks page.', tip: 'Write the task, choose High, Medium, or Low priority, and add a deadline when it is due.' },
+    { icon: '🔔', page: 'tasks', target: '#task-reminder', kicker: 'Step 3 of 6', title: 'Add reminders', intro: 'Use the Reminder field beside the deadline.', tip: 'Choose a date and time, then enable notifications so Bloom can remind you when it is due.' },
+    { icon: '🌙', page: 'habits', target: '#habit-input', kicker: 'Step 4 of 6', title: 'Build daily habits', intro: 'Create a habit on the Routines page.', tip: 'Mark today as done. The monthly view shows completed days, missed days, and your best streak.' },
+    { icon: '🥞', page: 'money', target: '.money-history-button', kicker: 'Step 5 of 6', title: 'Track Bites and Buys', intro: 'Enter spending on the Bites and Buys page.', tip: 'Record meals and extra items, then use this history button to see weekly and monthly summaries.' },
+    { icon: '📚', page: 'books', target: '#book-title', kicker: 'Step 6 of 6', title: 'Keep reading', intro: 'Add a book on the Quiet Chapters page.', tip: 'Enter the title, total pages, and daily goal. Log the pages you read each day to track progress.' }
+  ];
+  let stepIndex = 0;
+  let highlightedTarget = null;
+
+  const close = () => {
+    overlay.hidden = true;
+    highlightedTarget?.classList.remove('guide-target');
+    highlightedTarget = null;
+    localStorage.setItem('bloom-guide-seen', '1');
+  };
+  const open = () => {
+    stepIndex = 0;
+    renderStep();
+    overlay.hidden = false;
+    closeButton.focus();
+  };
+
+  const renderStep = () => {
+    const step = steps[stepIndex];
+    highlightedTarget?.classList.remove('guide-target');
+    highlightedTarget = null;
+    if (step.page) showPage(step.page);
+    if (step.target) {
+      highlightedTarget = $(step.target);
+      highlightedTarget?.classList.add('guide-target');
+    }
+    progress.textContent = stepIndex === 0 ? 'Quick tour' : `${stepIndex} of ${steps.length - 1}`;
+    icon.textContent = step.icon;
+    kicker.textContent = step.kicker;
+    title.textContent = step.title;
+    intro.textContent = step.intro;
+    tip.textContent = step.tip;
+    backButton.disabled = stepIndex === 0;
+    nextButton.textContent = stepIndex === steps.length - 1 ? 'Finish' : 'Next';
+  };
+
+  closeButton.addEventListener('click', close);
+  backButton.addEventListener('click', () => {
+    if (stepIndex > 0) { stepIndex--; renderStep(); }
+  });
+  nextButton.addEventListener('click', () => {
+    if (stepIndex < steps.length - 1) { stepIndex++; renderStep(); }
+    else close();
+  });
+  accountButton?.addEventListener('click', open);
+  overlay.addEventListener('click', event => {
+    if (event.target === overlay) close();
+  });
+
+  const isWelcome = new URLSearchParams(window.location.search).get('welcome') === '1';
+  if (isWelcome && !localStorage.getItem('bloom-guide-seen')) {
+    open();
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}
+
 async function loadAnnouncement() {
   const area = $('#announcement-area');
   if (!area) return;
@@ -197,7 +279,7 @@ async function renderDashboard() {
     : minutes >= 1011 && minutes <= 1140 ? 'Good evening'
     : 'Good night';
   const greetEl = $('#dash-greeting');
-  if (greetEl) greetEl.textContent = greet + '!';
+  if (greetEl) greetEl.textContent = greet + ' 🌸';
 
   // stats
   const [prayers, tasks, thoughts, books, habits] = await Promise.all([
@@ -216,8 +298,6 @@ async function renderDashboard() {
   if (sg) sg.innerHTML = `
     <div class="stat-card pink"><div class="stat-icon">🕌</div><div class="stat-val">${todayPrayed}/5</div><div class="stat-label">Prayers Today</div></div>
     <div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-val">${pending}</div><div class="stat-label">Pending Tasks</div></div>
-    <div class="stat-card rose"><div class="stat-icon">📓</div><div class="stat-val">${thoughts.length}</div><div class="stat-label">Thoughts</div></div>
-    <div class="stat-card sage"><div class="stat-icon">📚</div><div class="stat-val">${books.length}</div><div class="stat-label">Books</div></div>
     <div class="stat-card pink"><div class="stat-icon">🌙</div><div class="stat-val">${habits.length}</div><div class="stat-label">Habits</div></div>
   `;
 
@@ -237,14 +317,16 @@ async function renderDashboard() {
   // today's tasks
   const dt = $('#dash-tasks');
   if (dt) {
-    const upcoming = tasks.filter(t => !t.done).slice(0, 5);
+    const upcoming = tasks
+      .filter(t => !t.done && t.deadline && String(t.deadline).slice(0, 10) === todayStr)
+      .slice(0, 5);
     dt.innerHTML = upcoming.length
       ? upcoming.map(t => `<div class="task-item ${t.done ? 'done' : ''}">
           <div class="task-check-box ${t.done?'done':''}" onclick="toggleTask(${t.id})">${t.done?'✓':''}</div>
           <div style="flex:1"><div class="task-text-main ${t.done ? 'done' : ''}">${escHtml(t.text)}</div>${t.deadline?`<div class="task-deadline ${isOverdue(t.deadline)?'task-overdue':''}">${fmtDeadline(t.deadline)}</div>`:''}${t.reminder?`<div class="task-reminder">🔔 ${fmtReminder(t.reminder)}</div>`:''}</div>
           <span class="priority-pill p-${t.priority}">${t.priority}</span>
         </div>`).join('')
-      : '<div class="empty-state"><span class="empty-icon">😊</span><p>All clear! No pending tasks.</p></div>';
+      : '<div class="empty-state"><span class="empty-icon">😊</span><p>All clear! No pending tasks for today.</p></div>';
   }
 }
 
@@ -339,6 +421,10 @@ async function renderTasks() {
   let items = data;
   if (taskFilter === 'pending') items = items.filter(t => !t.done);
   if (taskFilter === 'done') items = items.filter(t => t.done);
+  if (taskFilter === 'pending') {
+    const priorityOrder = { high: 0, medium: 1, low: 2 };
+    items = [...items].sort((a, b) => (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1));
+  }
   list.innerHTML = items.length
     ? items.map(t => `<div class="task-item">
         <div class="task-check-box ${t.done?'done':''}" onclick="toggleTask(${t.id})">${t.done?'✓':''}</div>
@@ -433,7 +519,7 @@ async function renderHabits() {
         // past: read-only
         return `<div class="habit-dot ${checked ? 'done' : 'missed'}"
           style="cursor:default;${checked ? '' : 'background:rgba(232,54,93,0.07);border-color:rgba(232,54,93,0.2);color:rgba(232,54,93,0.4);'}"
-          title="Day ${d} — ${checked ? 'done ✓' : 'missed'}">${d}</div>`;
+          title="Day ${d} — ${checked ? 'Done ' : 'Missed'}">${d}</div>`;
       }
     }).join('');
 
@@ -442,7 +528,7 @@ async function renderHabits() {
       <div onclick="toggleHabit(${h.id},'${todayKey}')"
            style="display:flex;align-items:center;gap:10px;cursor:pointer;
                   padding:10px 14px;border-radius:12px;margin-bottom:10px;
-                  background:${todayDone ? 'linear-gradient(135deg,var(--matcha-mist),var(--matcha-cream))' : 'linear-gradient(135deg,var(--straw-cream),var(--straw-mist))'};
+                  background:${todayDone ? 'linear-gradient(135deg, #def8e8, #8adfac)' : 'linear-gradient(135deg,var(--straw-cream),var(--straw-mist))'};
                   border:2px solid ${todayDone ? 'var(--matcha-light)' : 'var(--straw-blush)'};">
         <div style="width:28px;height:28px;border-radius:8px;flex-shrink:0;
                     display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:800;
@@ -452,7 +538,7 @@ async function renderHabits() {
           ${todayDone ? '✓' : ''}
         </div>
         <span style="font-weight:700;font-size:0.9rem;color:${todayDone ? 'var(--matcha-deep)' : 'var(--text-mid)'}">
-          ${todayDone ? 'Done today! Great job 🌿' : 'Mark today as done'}
+          ${todayDone ? 'All set for today 🌷' : 'Mark today as done'}
         </span>
       </div>`;
 
@@ -465,7 +551,7 @@ async function renderHabits() {
         <button class="btn-icon" onclick="deleteHabit(${h.id})">🗑️</button>
       </div>
       ${todayCheckbox}
-      <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px">Monthly view</div>
+      <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px">Days</div>
       <div class="habit-dots">${dots}</div>
     </div>`;
   }).join('');
@@ -662,26 +748,6 @@ function renderMoneyBalance() {
   $('#money-after-food').textContent = 'Rs ' + Math.max(moneyBalance - getTotalSpentSoFar(), 0).toFixed(0);
 }
 
-function addMoneyToBalance() {
-  const amount = +$('#money-add-amount').value || 0;
-  if (amount <= 0) return;
-
-  const previousStartingAmount = getCycleStartingAmount();
-  const previousSpentAmount = getCurrentCycleSpent();
-  const remainingBalance = previousStartingAmount - previousSpentAmount;
-  const newStartingAmount = amount + remainingBalance;
-
-  moneyBalance = newStartingAmount;
-  localStorage.setItem('bloom.money.balance', moneyBalance.toFixed(0));
-  saveMoneyCycleState({
-    startDate: today(),
-    startingAmount: moneyBalance.toFixed(0)
-  });
-  $('#money-add-amount').value = '';
-  renderMoneyBalance();
-  showToast('Cycle reset', `New cycle starts at Rs ${moneyBalance.toFixed(0)}.`);
-}
-
 function clearMoneyBalance() {
   moneyBalance = 0;
   localStorage.setItem('bloom.money.balance', '0');
@@ -818,6 +884,7 @@ let moneyHistory = [];
 // Set a date such as '2026-08-24' for rollover testing; leave empty for the real local date.
 const MONEY_LOG_TEST_DATE = ''; // Set to YYYY-MM-DD only while testing a past date
 const moneyBoxes = ['breakfast', 'lunch', 'dinner', 'snacks', 'others'];
+const moneyStandardBoxes = moneyBoxes.filter(box => box !== 'others');
 
 function moneyWorkingDate() { return MONEY_LOG_TEST_DATE || today(); }
 
@@ -835,23 +902,25 @@ function currentMoneyTotal() {
 
 function renderMoneyState() {
   if (!moneyState) return;
+  refreshMoneyTotals();
+  $('#money-today-date').textContent = formatMoneyDate(moneyState.today_date);
+  moneyBoxes.forEach(box => {
+    const input = $(`#m-${box}`);
+    if (input && input.value !== String(moneyState[box] || '')) input.value = moneyState[box] || '';
+  });
+  renderOtherItems();
+  $('#save-day-btn')?.classList.toggle('saved', Boolean(moneyState.today_saved));
+  renderWeeklySummary();
+}
+
+function refreshMoneyTotals() {
+  if (!moneyState) return;
   const todayTotal = currentMoneyTotal();
   const after = (+moneyState.total_entered || 0) - (+moneyState.old_spending || 0) - todayTotal;
   $('#money-total-entered').textContent = `Rs ${(+moneyState.total_entered || 0).toFixed(2)}`;
   $('#money-after-spending').textContent = `Rs ${after.toFixed(2)}`;
   $('#money-after-spending').classList.toggle('money-negative', after < 0);
   $('#money-today-total').textContent = `Rs ${todayTotal.toFixed(2)}`;
-  const [year, month, day] = moneyState.today_date.split('-').map(Number);
-  $('#money-today-date').textContent = new Date(year, month - 1, day).toLocaleDateString(undefined, {
-    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
-  });
-  moneyBoxes.forEach(box => {
-    const input = $(`#m-${box}`);
-    if (input) input.value = moneyState[box] || '';
-  });
-  renderOtherItems();
-  $('#save-day-btn')?.classList.toggle('saved', Boolean(moneyState.today_saved));
-  renderWeeklySummary();
 }
 
 function renderOtherItems() {
@@ -862,23 +931,45 @@ function renderOtherItems() {
 }
 
 function addOtherItem() {
+  if (!moneyState) {
+    moneyState = {
+      today_date: moneyWorkingDate(),
+      total_entered: 0,
+      old_spending: 0,
+      breakfast: 0,
+      lunch: 0,
+      dinner: 0,
+      snacks: 0,
+      others: 0,
+      other_items: []
+    };
+  }
   moneyState.other_items = [...(moneyState.other_items || []), { name: '', amount: 0 }];
   renderOtherItems();
+  refreshMoneyTotals();
 }
 
 function updateOtherItem(index, field, value) {
   const item = moneyState?.other_items?.[index];
   if (!item) return;
-  item[field] = field === 'amount' ? Math.max(+value || 0, 0) : value;
+
+  if (field === 'amount') {
+    const numericValue = value === '' ? 0 : Math.max(Number(value) || 0, 0);
+    item.amount = numericValue;
+  } else {
+    item.name = value;
+  }
+
   moneyState.others = moneyState.other_items.reduce((sum, entry) => sum + (+entry.amount || 0), 0);
-  renderMoneyState();
+  refreshMoneyTotals();
   saveOtherItemsLive();
 }
 
 function removeOtherItem(index) {
   moneyState.other_items.splice(index, 1);
   moneyState.others = moneyState.other_items.reduce((sum, entry) => sum + (+entry.amount || 0), 0);
-  renderMoneyState();
+  renderOtherItems();
+  refreshMoneyTotals();
   saveOtherItemsLive();
 }
 
@@ -891,13 +982,14 @@ async function renderMoney() { await loadMoneyState(); }
 async function updateMoneyBox(box, value) {
   if (!moneyState || moneyState.today_date !== moneyWorkingDate()) { await loadMoneyState(); return; }
   moneyState[box] = Math.max(+value || 0, 0);
-  renderMoneyState();
+  refreshMoneyTotals();
+  renderWeeklySummary();
   await api('/api/money', 'POST', { today_date: moneyWorkingDate(), [box]: moneyState[box] });
-  await loadMoneyState();
 }
 
 async function addMoneyToBalance() {
-  const amount = +$('#money-add-amount').value || 0;
+  const rawAmount = $('#money-add-amount')?.value ?? '';
+  const amount = Number(rawAmount) || 0;
   if (amount <= 0) return;
   await api('/api/money', 'POST', { action: 'add-money', amount, today_date: moneyWorkingDate() });
   $('#money-add-amount').value = '';
@@ -916,14 +1008,35 @@ function renderWeeklySummary() {
   renderMoneySummary('weekly');
 }
 
-function moneyDayTotal(day) { return moneyBoxes.reduce((sum, box) => sum + (+day[box] || 0), 0); }
+function moneyCustomEntries(day) {
+  if (!day) return [];
+  if (Array.isArray(day.custom)) return day.custom.filter(item => item && (item.name || item.amount));
+  if (Array.isArray(day.other_items)) return day.other_items.filter(item => item && (item.name || item.amount));
+  return [];
+}
+
+function moneyOtherTotal(day) {
+  const customItems = moneyCustomEntries(day);
+  if (Array.isArray(day?.custom) || Array.isArray(day?.other_items)) {
+    return customItems.reduce((sum, item) => sum + (+item.amount || 0), 0);
+  }
+  return +day?.others || 0;
+}
+
+function moneyBoxLabel(box) {
+  return box.charAt(0).toUpperCase() + box.slice(1);
+}
+
+function moneyDayTotal(day) {
+  return moneyStandardBoxes.reduce((sum, box) => sum + (+day?.[box] || 0), 0) + moneyOtherTotal(day);
+}
 
 function formatMoneyDate(dateString) {
   const [year, month, day] = String(dateString).split('-').map(Number);
   if (!year || !month || !day) return dateString;
-  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
-    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
-  });
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const date = new Date(year, month - 1, day);
+  return `${date.toLocaleDateString(undefined, { weekday: 'long' })}, ${day} ${monthNames[month - 1]}`;
 }
 
 function moneyHistoryWithToday() {
@@ -931,12 +1044,29 @@ function moneyHistoryWithToday() {
   return [{ ...moneyState, date: moneyWorkingDate(), isToday: true }, ...moneyHistory.filter(day => day.date !== moneyWorkingDate())];
 }
 
+function updateSummaryTabState(mode) {
+  document.querySelectorAll('.money-summary-tab').forEach(button => {
+    const active = button.dataset.summary === mode;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+}
+
 function renderMoneySummary(mode) {
   const summaries = $$('.money-summary-content');
   if (!summaries.length) return;
+  updateSummaryTabState(mode);
+
   const [workingYear, workingMonth, workingDay] = moneyWorkingDate().split('-').map(Number);
   const now = new Date(workingYear, workingMonth - 1, workingDay);
   const localDate = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+  const monthPrefix = `${workingYear}-${String(workingMonth).padStart(2, '0')}`;
+  const currentMonthEntries = [
+    ...moneyHistory.filter(day => day.date.startsWith(monthPrefix) && moneyDayTotal(day) > 0),
+    ...(moneyState && moneyState.today_date.startsWith(monthPrefix) && moneyDayTotal(moneyState) > 0 ? [moneyState] : [])
+  ];
+
   const sevenDays = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(now);
     date.setDate(now.getDate() - index);
@@ -945,17 +1075,26 @@ function renderMoneySummary(mode) {
     const day = liveToday ? moneyState : moneyHistory.find(item => item.date === dateString);
     return { date: dateString, day: day || {}, isSaved: Boolean(day && (day.is_saved || day.isToday || (dateString === moneyWorkingDate() && moneyState?.today_saved))) };
   });
+
   summaries.forEach(summary => {
     if (summary.classList.contains('money-history-summary')) {
-      const start = mode === 'weekly' ? sevenDays[6].date : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-      const rows = moneyHistory.filter(day => mode === 'monthly'
-        ? day.date.startsWith(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
-        : day.date >= start);
-      const totals = moneyBoxes.map(box => rows.reduce((sum, day) => sum + (+day[box] || 0), 0) + (+moneyState?.[box] || 0));
-      summary.innerHTML = `<div class="money-summary-heading">${mode === 'weekly' ? 'This Week' : 'This Month'} Category Summary</div><div class="money-history-summary-values">${moneyBoxes.map((box, index) => `<span>${box}: Rs ${totals[index].toFixed(2)}</span>`).join('')}<strong>Total: Rs ${totals.reduce((sum, value) => sum + value, 0).toFixed(2)}</strong></div>`;
+      const rows = mode === 'monthly' ? currentMonthEntries : sevenDays.filter(item => item.isSaved && moneyDayTotal(item.day) > 0).map(item => item.day);
+      const totals = [
+        ...moneyStandardBoxes.map(box => rows.reduce((sum, day) => sum + (+day[box] || 0), 0)),
+        rows.reduce((sum, day) => sum + moneyOtherTotal(day), 0)
+      ];
+      const summaryLabels = [...moneyStandardBoxes, 'others'];
+      const grandTotal = totals.reduce((sum, value) => sum + value, 0);
+      summary.innerHTML = `<div class="money-summary-heading">${mode === 'weekly' ? 'Weekly' : 'Monthly'} Summary</div><div class="money-history-summary-values">${summaryLabels.map((box, index) => `<span>${moneyBoxLabel(box)}: Rs ${totals[index].toFixed(2)}</span>`).join('')}<strong>Total: Rs ${grandTotal.toFixed(2)}</strong></div>`;
+    } else if (mode === 'monthly') {
+      const rows = currentMonthEntries.length ? currentMonthEntries.map(day => {
+        const date = day.date || moneyWorkingDate();
+        return `<div class="money-summary-table-row"><span>${formatMoneyDate(date)}</span><span>Rs ${(+day.breakfast || 0).toFixed(2)}</span><span>Rs ${(+day.lunch || 0).toFixed(2)}</span><span>Rs ${(+day.dinner || 0).toFixed(2)}</span><span>Rs ${(+day.snacks || 0).toFixed(2)}</span><span>Rs ${moneyOtherTotal(day).toFixed(2)}</span><span>Rs ${moneyDayTotal(day).toFixed(2)}</span></div>`;
+      }).join('') : '';
+      summary.innerHTML = `<div class="money-summary-heading">This Month</div>${rows ? `<div class="money-summary-table money-monthly-table"><div class="money-summary-table-row money-summary-table-head"><span>Date</span><span>Breakfast</span><span>Lunch</span><span>Dinner</span><span>Snacks</span><span>Others</span><span>Total</span></div>${rows}</div>` : '<div class="money-summary-empty">No spending in this month.</div>'}`;
     } else {
       const savedDays = sevenDays.filter(item => item.isSaved && moneyDayTotal(item.day) > 0);
-      summary.innerHTML = `<div class="money-summary-heading">Last 7 Days</div>${savedDays.length ? `<div class="money-summary-table"><div class="money-summary-table-row money-summary-table-head"><span>Date</span><span>Breakfast</span><span>Lunch</span><span>Dinner</span></div>${savedDays.map(item => `<div class="money-summary-table-row"><span>${formatMoneyDate(item.date)}</span><span>Rs ${(+item.day.breakfast || 0).toFixed(2)}</span><span>Rs ${(+item.day.lunch || 0).toFixed(2)}</span><span>Rs ${(+item.day.dinner || 0).toFixed(2)}</span></div>`).join('')}</div>` : '<div class="money-summary-empty">No spending in the last 7 days.</div>'}`;
+      summary.innerHTML = `<div class="money-summary-heading">Last 7 Days</div>${savedDays.length ? `<div class="money-summary-table money-weekly-table"><div class="money-summary-table-row money-summary-table-head"><span>Date</span><span>Breakfast</span><span>Lunch</span><span>Dinner</span><span>Snacks</span><span>Others</span></div>${savedDays.map(item => `<div class="money-summary-table-row"><span>${formatMoneyDate(item.date)}</span><span>Rs ${(+item.day.breakfast || 0).toFixed(2)}</span><span>Rs ${(+item.day.lunch || 0).toFixed(2)}</span><span>Rs ${(+item.day.dinner || 0).toFixed(2)}</span><span>Rs ${(+item.day.snacks || 0).toFixed(2)}</span><span>Rs ${moneyOtherTotal(item.day).toFixed(2)}</span></div>`).join('')}</div>` : '<div class="money-summary-empty">No spending in the last 7 days.</div>'}`;
     }
   });
 }
@@ -979,12 +1118,28 @@ function renderMoneyDeleteMonths() {
     : '<span class="money-delete-month">No saved months</span>';
 }
 
+function closeMoneyDeleteMonths() {
+  const menu = $('#money-delete-months');
+  if (menu) menu.hidden = true;
+}
+
 function toggleMoneyDeleteMonths() {
   const menu = $('#money-delete-months');
   if (!menu) return;
   renderMoneyDeleteMonths();
   menu.hidden = !menu.hidden;
 }
+
+document.addEventListener('click', (event) => {
+  const menu = $('#money-delete-months');
+  const trigger = $('.money-delete-button');
+  if (!menu || menu.hidden) return;
+  const clickedInsideMenu = menu.contains(event.target);
+  const clickedTrigger = trigger && trigger.contains(event.target);
+  if (!clickedInsideMenu && !clickedTrigger) {
+    menu.hidden = true;
+  }
+});
 
 async function deleteMoneyMonth(monthValue) {
   const [year, month] = monthValue.split('-').map(Number);
@@ -1002,8 +1157,12 @@ function renderMoneyDetailsList() {
   const history = moneyHistoryWithToday().filter(day => moneyDayTotal(day) > 0);
   list.innerHTML = history.length ? history.map(day => {
     const label = formatMoneyDate(day.date);
-    const items = (day.custom || []).filter(item => item.name).map(item => `<div class="money-history-item"><span>${escHtml(item.name)}</span><strong>Rs ${(+item.amount || 0).toFixed(2)}</strong></div>`).join('');
-    return `<details class="money-history-row"${day.isToday ? ' open' : ''}><summary><span><small>${day.isToday ? 'CURRENT DAY' : ''}</small><b>${label}</b></span><strong class="money-history-total">Rs ${moneyDayTotal(day).toFixed(2)}</strong></summary><div class="money-history-values">${moneyBoxes.map(box => `<div class="money-history-category"><span>${box}</span><strong>Rs ${(+day[box] || 0).toFixed(2)}</strong></div>`).join('')}</div>${items ? `<div class="money-history-items"><small>Other items</small>${items}</div>` : ''}</details>`;
+    const customItems = moneyCustomEntries(day).filter(item => item && (item.name || item.amount));
+    const standardValues = moneyStandardBoxes
+      .map(box => `<div class="money-history-category"><span>${box}</span><strong>Rs ${(+day[box] || 0).toFixed(2)}</strong></div>`)
+      .join('');
+    const customValues = customItems.map(item => `<div class="money-history-category"><span>${escHtml(String(item.name || 'Other'))}</span><strong>Rs ${(+item.amount || 0).toFixed(2)}</strong></div>`).join('');
+    return `<details class="money-history-row"${day.isToday ? ' open' : ''}><summary><span><small>${day.isToday ? 'CURRENT DAY' : ''}</small><b>${label}</b></span><strong class="money-history-total">Rs ${moneyDayTotal(day).toFixed(2)}</strong></summary><div class="money-history-values">${standardValues}${customValues}</div></details>`;
   }).join('') : '<div class="empty-state"><p>No spending recorded yet.</p></div>';
 }
 
@@ -1182,6 +1341,27 @@ function check10pm() {
 }
 
 let pushRegistration = null;
+
+function setupNotificationPrompt() {
+  const prompt = $('#notification-prompt');
+  const enable = $('#notification-prompt-enable');
+  const later = $('#notification-prompt-later');
+  if (!prompt || !enable || !later) return;
+
+  const promptKey = 'bloom-notification-prompt-seen';
+  const canAsk = 'Notification' in window && Notification.permission === 'default';
+  if (!localStorage.getItem(promptKey) && canAsk) prompt.hidden = false;
+
+  const close = () => {
+    prompt.hidden = true;
+    localStorage.setItem(promptKey, '1');
+  };
+  later.addEventListener('click', close);
+  enable.addEventListener('click', async () => {
+    close();
+    await enablePushNotifications();
+  });
+}
 
 async function registerPushWorker() {
   if (!('serviceWorker' in navigator) || !window.isSecureContext) return;

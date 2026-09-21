@@ -1,5 +1,6 @@
 Flask
 Flask-SQLAlchemy
+Flask-Limiter
 pywebpush
 gunicorn
 psycopg2-binary
