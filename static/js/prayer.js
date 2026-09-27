@@ -51,22 +51,18 @@ window.PrayerModule = (function () {
     const nowM = now.getMonth() + 1;
     const nowY = now.getFullYear();
 
-    // fetch this month
-    const r1 = await fetch(`/api/prayers?month=${nowM}&year=${nowY}`);
-    const d1 = await r1.json();
+    const d1 = await api(`/api/prayers?month=${nowM}&year=${nowY}`);
 
     // fetch previous month too (for streaks crossing month boundary)
     let prevM = nowM - 1, prevY = nowY;
     if (prevM < 1) { prevM = 12; prevY--; }
-    const r2 = await fetch(`/api/prayers?month=${prevM}&year=${prevY}`);
-    const d2 = await r2.json();
+    const d2 = await api(`/api/prayers?month=${prevM}&year=${prevY}`);
 
     return [...d1, ...d2];
   }
 
   async function fetchMonthPrayers() {
-    const r = await fetch(`/api/prayers?month=${month}&year=${year}`);
-    return r.json();
+    return api(`/api/prayers?month=${month}&year=${year}`);
   }
 
   /* ── Streak Calculators ─────────────────────
@@ -137,8 +133,7 @@ window.PrayerModule = (function () {
     const now     = referenceDate();
 
     // Count stats for this month
-    let totalPrayed = 0, totalSlots = 0;
-
+    const data  = await api(`/api/prayers?month=${nowM}&year=${nowY}`);
     // Build the monthly grid table
     let html = `<table class="prayer-table">
       <thead><tr>
@@ -243,15 +238,10 @@ window.PrayerModule = (function () {
     // Safety: only allow toggling today
     if (ds !== todayStr()) return;
 
-    const r    = await fetch(`/api/prayers?month=${month}&year=${year}`);
-    const data = await r.json();
+    const data = await api(`/api/prayers?month=${month}&year=${year}`);
     const rec  = data.find(p => p.date === ds && p.name === name);
 
-    await fetch("/api/prayers", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken() },
-      body:    JSON.stringify({ date: ds, name, done: rec ? !rec.done : true }),
-    });
+    await api("/api/prayers", "POST", { date: ds, name, done: rec ? !rec.done : true });
 
     render();
   }
@@ -262,15 +252,10 @@ window.PrayerModule = (function () {
     const now = referenceDate();
     const nowM  = now.getMonth() + 1;
     const nowY  = now.getFullYear();
-    const r     = await fetch(`/api/prayers?month=${nowM}&year=${nowY}`);
-    const data  = await r.json();
+    const data = await api(`/api/prayers?month=${nowM}&year=${nowY}`);
     const rec   = data.find(p => p.date === today && p.name === name);
 
-    await fetch("/api/prayers", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken() },
-      body:    JSON.stringify({ date: today, name, done: rec ? !rec.done : true }),
-    });
+        await api("/api/prayers", "POST", { date: today, name, done: rec ? !rec.done : true });
   }
 
   /* ── Month navigation ────────────────────── */

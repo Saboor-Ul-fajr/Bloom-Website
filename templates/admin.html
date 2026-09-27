@@ -119,7 +119,11 @@ async function loadStats() {
 async function sendAnnouncement() {
   const text = document.getElementById('announce-text').value.trim();
   if (!text) return;
-  await api('/api/admin/announce', 'POST', { text });
+  const result = await api('/api/admin/announce', 'POST', { text });
+  if (!result.ok) {
+    document.getElementById('announce-msg').textContent = '❌ ' + (result.error || 'Could not send announcement.');
+    return;
+  }
   document.getElementById('announce-text').value = '';
   document.getElementById('announce-msg').textContent = '✅ Announcement sent to all users!';
   setTimeout(() => document.getElementById('announce-msg').textContent = '', 3000);

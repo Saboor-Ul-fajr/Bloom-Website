@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
 </head>
-<body data-page="{{ page }}">
+<body data-page="{{ page }}" data-user-id="{{ user.id }}">
 
 <div class="notification-prompt" id="notification-prompt" hidden>
   <div class="notification-prompt-card" role="dialog" aria-modal="true" aria-labelledby="notification-prompt-title">
@@ -122,6 +122,11 @@
         <button class="account-notification-button" id="enable-notifications" type="button">Enable phone notifications</button>
         <div class="account-notification-status" id="notification-status"></div>
         <button class="account-guide-button" id="open-guide" type="button">View Bloom guide</button>
+        <div class="account-storage-panel">
+          <div class="account-page-label">Data storage</div>
+          <p id="storage-mode-status">Your data is stored in your Bloom account.</p>
+          <button class="account-notification-button" id="enable-local-storage" type="button">Store data on this device</button>
+        </div>
         <a class="account-signout" href="/logout">Sign out</a>
       </div>
 
@@ -353,6 +358,7 @@
   </main>
 </div>
 
+<script src="{{ url_for('static', filename='js/local-store.js') }}"></script>
 <script src="{{ url_for('static', filename='js/prayer.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>

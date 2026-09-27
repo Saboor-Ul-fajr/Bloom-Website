@@ -138,7 +138,7 @@ def index():
 def login():
     data = request.get_json() or {}
     username = data.get("username", "").strip()
-    password = data.get("password", "")
+    password = data.get("password", "") or ""
 
     admin = AdminUser.query.filter_by(username=username).first()
     if admin and admin.active and check_password_hash(admin.password_hash, password):
@@ -518,6 +518,94 @@ def api_money_get():
                         "history": result})
     return jsonify(result)
 
+@app.route("/api/user/data-export", methods=["GET"])
+def api_user_data_export():
+    if not logged_in(): return jsonify({"ok": False, "error": "Authentication required."}), 401
+    user = current_user()
+    prayers = Prayer.query.filter_by(user_id=user.id).all()
+    tasks = Task.query.filter_by(user_id=user.id).all()
+    thoughts = Thought.query.filter_by(user_id=user.id).all()
+    habits = Habit.query.filter_by(user_id=user.id).all()
+    books = Book.query.filter_by(user_id=user.id).all()
+    money_state = get_money_state(user, local_money_date())
+
+    habit_data = []
+    for habit in habits:
+        logs = HabitLog.query.filter_by(habit_id=habit.id).all()
+        habit_data.append({"id": habit.id, "name": habit.name, "logs": [str(log.date) for log in logs]})
+
+    book_data = []
+    for book in books:
+        logs = BookLog.query.filter_by(book_id=book.id).all()
+        book_data.append({
+            "id": book.id, "title": book.title, "total_pages": book.total_pages,
+            "daily_goal": book.daily_goal, "start_date": str(book.start_date),
+            "daily_logs": {str(log.date): log.pages_read for log in logs}
+        })
+
+    try:
+        other_items = json.loads(money_state.other_items or "[]")
+    except (TypeError, ValueError):
+        other_items = []
+    money_logs = MoneyLog.query.filter_by(user_id=user.id).order_by(MoneyLog.date.desc()).all()
+    history = []
+    for log in money_logs:
+        custom = CustomExpense.query.filter_by(money_log_id=log.id).all()
+        snacks = log.snacks or log.cheez or 0
+        history.append({
+            "id": log.id, "date": str(log.date), "amount": log.amount,
+            "breakfast": log.breakfast, "lunch": log.lunch, "dinner": log.dinner,
+            "snacks": snacks, "others": log.others, "is_saved": bool(log.is_saved),
+            "custom": [{"name": item.name, "amount": item.amount} for item in custom]
+        })
+
+    return jsonify({
+        "prayers": [{"date": str(item.date), "name": item.name, "done": item.done} for item in prayers],
+        "tasks": [{
+            "id": item.id, "text": item.text, "done": item.done, "priority": item.priority,
+            "deadline": item.deadline.strftime("%Y-%m-%dT%H:%M") if item.deadline else None,
+            "reminder": item.reminder.strftime("%Y-%m-%dT%H:%M") if item.reminder else None,
+            "created": item.created_at.strftime("%b %d") if item.created_at else ""
+        } for item in tasks],
+        "thoughts": [{"id": item.id, "text": item.text, "fav": item.fav, "date": item.created_at.strftime("%b %d, %Y")} for item in thoughts],
+        "habits": habit_data,
+        "books": book_data,
+        "money": {
+            "state": {
+                "total_entered": money_state.total_entered or 0,
+                "old_spending": money_state.old_spending or 0,
+                "today_date": money_state.today_date,
+                "today_saved": bool(money_state.today_saved),
+                "other_items": other_items,
+                **{box: getattr(money_state, box) or 0 for box in MONEY_BOXES}
+            },
+            "history": history
+        }
+    })
+
+@app.route("/api/user/data", methods=["DELETE"])
+def api_user_data_delete():
+    if not logged_in(): return jsonify({"ok": False, "error": "Authentication required."}), 401
+    user_id = current_user().id
+    book_ids = [item.id for item in Book.query.filter_by(user_id=user_id).all()]
+    habit_ids = [item.id for item in Habit.query.filter_by(user_id=user_id).all()]
+    money_log_ids = [item.id for item in MoneyLog.query.filter_by(user_id=user_id).all()]
+    if book_ids:
+        BookLog.query.filter(BookLog.book_id.in_(book_ids)).delete(synchronize_session=False)
+    if habit_ids:
+        HabitLog.query.filter(HabitLog.habit_id.in_(habit_ids)).delete(synchronize_session=False)
+    if money_log_ids:
+        CustomExpense.query.filter(CustomExpense.money_log_id.in_(money_log_ids)).delete(synchronize_session=False)
+    Prayer.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+    Task.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+    Thought.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+    Habit.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+    Book.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+    MoneyLog.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+    MoneyState.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+    db.session.commit()
+    return jsonify({"ok": True})
+
 @app.route("/api/money", methods=["POST"])
 def api_money_post():
     if not logged_in(): return jsonify({"ok": False})
@@ -702,7 +790,6 @@ def api_admin_announce():
     text = data.get("text", "").strip()
     if not text or len(text) > 1000:
         return jsonify({"ok": False, "error": "Announcement must be 1-1000 characters."}), 400
-    Announcement.query.delete()
     a = Announcement(text=text, created_at=datetime.now())
     db.session.add(a)
     db.session.flush()
@@ -712,9 +799,8 @@ def api_admin_announce():
 
 @app.route("/api/admin/announcement")
 def api_admin_announcement():
-    a = Announcement.query.order_by(Announcement.id.desc()).first()
-    if not a: return jsonify(None)
-    return jsonify({"id": a.id, "text": a.text, "date": a.created_at.strftime("%b %d, %Y %H:%M")})
+    announcements = Announcement.query.order_by(Announcement.id.desc()).limit(20).all()
+    return jsonify([{"id": a.id, "text": a.text, "date": a.created_at.strftime("%b %d, %Y %H:%M")} for a in announcements])
 
 @app.route("/api/admin/reset_password", methods=["POST"])
 def api_admin_reset():

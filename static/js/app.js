@@ -9,6 +9,11 @@ const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(
 const todayDT = () => new Date();
 const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.content || '';
 const api = async (url, method = 'GET', body = null) => {
+  const userId = document.body.dataset.userId;
+  if (userId && window.BloomLocalStore && await BloomLocalStore.isLocalEnabled(userId)) {
+    const localResult = await BloomLocalStore.handleApi(userId, url, method, body);
+    if (localResult.handled) return localResult.value;
+  }
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (method !== 'GET') opts.headers['X-CSRF-Token'] = csrfToken();
   if (body) opts.body = JSON.stringify(body);
@@ -61,14 +66,40 @@ function closeStreakCelebration() {
 }
 
 // ─── Toast ────────────────────────────────────
+const toastQueue = [];
+let toastActive = false;
+
 function showToast(title, msg, persistent = false) {
   const t = $('#toast');
-  $('#toast-title').textContent = title;
-  $('#toast-msg').textContent = msg;
+  if (!t) return;
+  toastQueue.push({ title, msg, persistent });
+  showNextToast();
+}
+
+function showNextToast() {
+  if (toastActive || !toastQueue.length) return;
+  const t = $('#toast');
+  if (!t) return;
+  const next = toastQueue.shift();
+  toastActive = true;
+  $('#toast-title').textContent = next.title;
+  $('#toast-msg').textContent = next.msg;
   t.classList.add('show');
-  t.classList.toggle('persistent', persistent);
+  t.classList.toggle('persistent', next.persistent);
   clearTimeout(t._timer);
-  if (!persistent) t._timer = setTimeout(() => t.classList.remove('show'), 4500);
+  const keepUntilDismissed = next.persistent && toastQueue.length === 0;
+  if (!keepUntilDismissed) {
+    t._timer = setTimeout(() => dismissToast(), next.persistent ? 7000 : 4500);
+  }
+}
+
+function dismissToast() {
+  const t = $('#toast');
+  if (!t) return;
+  clearTimeout(t._timer);
+  t.classList.remove('show', 'persistent');
+  toastActive = false;
+  showNextToast();
 }
 
 // ─── Navigation ───────────────────────────────
@@ -101,6 +132,7 @@ function showPage(name) {
     books: renderBooks
   };
   if (renders[name]) renders[name]();
+  if (name === 'dashboard') loadAnnouncement();
   updateMobileNavigation();
 }
 
@@ -143,14 +175,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   $('#mobile-back')?.addEventListener('click', () => moveMobilePage(-1));
   $('#mobile-forward')?.addEventListener('click', () => moveMobilePage(1));
-  $('#toast-close')?.addEventListener('click', () => {
-    $('#toast')?.classList.remove('show', 'persistent');
-  });
+  $('#toast-close')?.addEventListener('click', dismissToast);
   $('#streak-celebration-close')?.addEventListener('click', closeStreakCelebration);
   $('#streak-celebration')?.addEventListener('click', event => {
     if (event.target.id === 'streak-celebration') closeStreakCelebration();
   });
   setupNotificationPrompt();
+  setupStorageControls();
   setupGuide();
   registerPushWorker();
   $('#enable-notifications')?.addEventListener('click', enablePushNotifications);
@@ -167,6 +198,56 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(check10pm, 60000);
 });
 
+async function setupStorageControls() {
+  const userId = document.body.dataset.userId;
+  const enable = $('#enable-local-storage');
+  const status = $('#storage-mode-status');
+  if (!userId || !enable || !status || !window.BloomLocalStore) return;
+
+  const refresh = async () => {
+    const enabled = await BloomLocalStore.isLocalEnabled(userId);
+    status.textContent = enabled
+      ? 'Your feature data is stored on this device. This choice cannot be reversed automatically.'
+      : 'Your data is stored in your Bloom account.';
+    enable.hidden = enabled;
+  };
+
+  enable.addEventListener('click', async () => {
+    if (!window.confirm('Copy your Bloom data to this device and remove its server copy?')) return;
+    enable.disabled = true;
+    let localSaved = false;
+    status.textContent = 'Copying your data to this device...';
+    try {
+      const response = await fetch('/api/user/data-export');
+      if (!response.ok) throw new Error('Could not export your account data.');
+      const exported = await response.json();
+      await BloomLocalStore.replaceWithExport(userId, exported);
+      localSaved = true;
+      const saved = await BloomLocalStore.getProfile(userId);
+      if (saved.tasks.length !== (exported.tasks || []).length || saved.prayers.length !== (exported.prayers || []).length) {
+        throw new Error('Local data verification failed.');
+      }
+      const deletion = await fetch('/api/user/data', {
+        method: 'DELETE',
+        headers: { 'X-CSRF-Token': csrfToken() }
+      });
+      if (!deletion.ok) throw new Error('Local copy saved, but the server copy could not be removed.');
+      status.textContent = 'Your feature data is stored on this device. This choice cannot be reversed automatically.';
+      showToast('Stored locally', 'Your Bloom data now works from this device.', true);
+      await refresh();
+    } catch (error) {
+      if (!localSaved) await BloomLocalStore.setLocalEnabled(userId, false);
+      status.textContent = error.message || 'Local storage could not be enabled.';
+      showToast('Storage unchanged', status.textContent);
+      await refresh();
+    } finally {
+      enable.disabled = false;
+    }
+  });
+
+  await refresh();
+}
+
 // ─── Announcement ─────────────────────────────
 function setupGuide() {
   const overlay = $('#guide-overlay');
@@ -181,6 +262,7 @@ function setupGuide() {
   const tip = $('#guide-tip');
   const accountButton = $('#open-guide');
   if (!overlay || !closeButton || !backButton || !nextButton) return;
+  const guideSeenKey = `bloom-guide-seen:${document.body.dataset.userId}`;
 
   const steps = [
     { icon: '🌸', kicker: 'Welcome to Bloom', title: 'Your daily life garden', intro: 'Let’s take a quick tour of Bloom.', tip: 'Use Next to visit each part of the app and learn what to do there.' },
@@ -198,7 +280,7 @@ function setupGuide() {
     overlay.hidden = true;
     highlightedTarget?.classList.remove('guide-target');
     highlightedTarget = null;
-    localStorage.setItem('bloom-guide-seen', '1');
+    localStorage.setItem(guideSeenKey, '1');
   };
   const open = () => {
     stepIndex = 0;
@@ -240,32 +322,31 @@ function setupGuide() {
   });
 
   const isWelcome = new URLSearchParams(window.location.search).get('welcome') === '1';
-  if (isWelcome && !localStorage.getItem('bloom-guide-seen')) {
+  if (isWelcome && !localStorage.getItem(guideSeenKey)) {
     open();
     window.history.replaceState({}, document.title, window.location.pathname);
   }
 }
 
+const dismissedAnnouncementIds = new Set();
+
 async function loadAnnouncement() {
   const area = $('#announcement-area');
   if (!area) return;
-  const a = await api('/api/admin/announcement');
-  const dismissedId = localStorage.getItem('bloom-dismissed-announcement');
-  if (a && String(a.id) !== dismissedId) {
-    area.innerHTML = `<div class="announce-banner">
-      <button class="announce-dismiss" type="button" aria-label="Dismiss announcement" onclick="dismissAnnouncement(${a.id})">×</button>
-      <span class="a-badge">📢 NOTICE</span>
-      <div class="a-text">${escHtml(a.text)}</div>
-      <div class="a-date">${a.date}</div>
-    </div>`;
-  } else {
-    area.innerHTML = '';
-  }
+  const response = await api('/api/admin/announcement');
+  const announcements = Array.isArray(response) ? response : response ? [response] : [];
+  const visible = announcements.filter(a => !dismissedAnnouncementIds.has(String(a.id)));
+  area.innerHTML = visible.map(a => `<div class="announce-banner">
+    <button class="announce-dismiss" type="button" aria-label="Dismiss announcement" onclick="dismissAnnouncement(${a.id}, this)">×</button>
+    <span class="a-badge">📢 NOTICE</span>
+    <div class="a-text">${escHtml(a.text)}</div>
+    <div class="a-date">${a.date}</div>
+  </div>`).join('');
 }
 
-function dismissAnnouncement(id) {
-  localStorage.setItem('bloom-dismissed-announcement', String(id));
-  $('#announcement-area').innerHTML = '';
+function dismissAnnouncement(id, button) {
+  dismissedAnnouncementIds.add(String(id));
+  button?.closest('.announce-banner')?.remove();
 }
 
 // ─── Dashboard ────────────────────────────────
