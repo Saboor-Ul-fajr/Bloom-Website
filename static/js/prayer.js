@@ -133,7 +133,8 @@ window.PrayerModule = (function () {
     const now     = referenceDate();
 
     // Count stats for this month
-    const data  = await api(`/api/prayers?month=${nowM}&year=${nowY}`);
+    let totalPrayed = 0, totalSlots = 0;
+
     // Build the monthly grid table
     let html = `<table class="prayer-table">
       <thead><tr>

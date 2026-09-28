@@ -328,7 +328,13 @@ function setupGuide() {
   }
 }
 
-const dismissedAnnouncementIds = new Set();
+const announcementDismissalKey = `bloom-dismissed-announcements:${document.body.dataset.userId || 'guest'}`;
+let dismissedAnnouncementIds = new Set();
+try {
+  dismissedAnnouncementIds = new Set(JSON.parse(localStorage.getItem(announcementDismissalKey) || '[]').map(String));
+} catch {
+  localStorage.removeItem(announcementDismissalKey);
+}
 
 async function loadAnnouncement() {
   const area = $('#announcement-area');
@@ -346,6 +352,7 @@ async function loadAnnouncement() {
 
 function dismissAnnouncement(id, button) {
   dismissedAnnouncementIds.add(String(id));
+  localStorage.setItem(announcementDismissalKey, JSON.stringify([...dismissedAnnouncementIds]));
   button?.closest('.announce-banner')?.remove();
 }
 
@@ -1364,6 +1371,8 @@ function isOverdue(dl) {
 }
 
 // ─── Notifications ────────────────────────────
+let taskReminderCheckActive = false;
+
 function scheduleReminders() {
   checkOverdueTasks();
   checkTaskReminders();
@@ -1375,31 +1384,58 @@ function requestNotificationPermission() {
 }
 
 async function checkTaskReminders() {
-  const tasks = await api('/api/tasks');
-  const now = Date.now();
-  const notified = JSON.parse(localStorage.getItem('bloom-reminders-notified') || '{}');
-  let changed = false;
-  tasks.filter(task => !task.done && task.reminder && new Date(task.reminder).getTime() <= now).forEach(task => {
-    const reminderKey = `${task.id}:${task.reminder}`;
-    if (notified[reminderKey]) return;
-    const message = `Reminder: ${task.text}`;
-    if ('Notification' in window && Notification.permission === 'granted') {
-      const notification = new Notification('🔔 Bloom task reminder', {
-        body: message,
-        requireInteraction: true,
-        tag: reminderKey,
-        renotify: true
-      });
-      notification.onclick = () => {
-        window.focus();
-        notification.close();
-      };
+  const userId = document.body.dataset.userId || 'guest';
+  const runCheck = async () => {
+    if (taskReminderCheckActive) return;
+    taskReminderCheckActive = true;
+    try {
+      const tasks = await api('/api/tasks');
+      const storageKey = `bloom-reminders-notified:${userId}`;
+      const legacy = localStorage.getItem('bloom-reminders-notified');
+      if (legacy && !localStorage.getItem(storageKey)) localStorage.setItem(storageKey, legacy);
+      let notified = {};
+      try {
+        notified = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      } catch {
+        localStorage.removeItem(storageKey);
+      }
+
+      const now = Date.now();
+      for (const task of tasks) {
+        if (task.done || !task.reminder || new Date(task.reminder).getTime() > now) continue;
+        const reminderKey = `${task.id}:${task.reminder}`;
+        if (notified[reminderKey]) continue;
+
+        notified[reminderKey] = now;
+        localStorage.setItem(storageKey, JSON.stringify(notified));
+        if ('Notification' in window && Notification.permission === 'granted') {
+          try {
+            const notification = new Notification(`🔔 ${task.text}`, {
+              body: 'Your task reminder is due now.',
+              requireInteraction: true,
+              tag: reminderKey,
+              renotify: false
+            });
+            notification.onclick = () => {
+              window.focus();
+              notification.close();
+            };
+          } catch (error) {
+            console.warn('Could not show task reminder notification.', error);
+          }
+        }
+        showToast('🔔 Task Reminder', task.text, true);
+      }
+    } finally {
+      taskReminderCheckActive = false;
     }
-    showToast('🔔 Task Reminder', task.text, true);
-    notified[reminderKey] = true;
-    changed = true;
-  });
-  if (changed) localStorage.setItem('bloom-reminders-notified', JSON.stringify(notified));
+  };
+
+  if (navigator.locks?.request) {
+    await navigator.locks.request(`bloom-task-reminders:${userId}`, runCheck);
+  } else {
+    await runCheck();
+  }
 }
 
 async function checkOverdueTasks() {
@@ -1429,7 +1465,9 @@ function setupNotificationPrompt() {
   const later = $('#notification-prompt-later');
   if (!prompt || !enable || !later) return;
 
-  const promptKey = 'bloom-notification-prompt-seen';
+  const promptKey = `bloom-notification-prompt-seen:${document.body.dataset.userId || 'guest'}`;
+  const legacyPromptSeen = localStorage.getItem('bloom-notification-prompt-seen');
+  if (legacyPromptSeen && !localStorage.getItem(promptKey)) localStorage.setItem(promptKey, legacyPromptSeen);
   const canAsk = 'Notification' in window && Notification.permission === 'default';
   if (!localStorage.getItem(promptKey) && canAsk) prompt.hidden = false;
 
