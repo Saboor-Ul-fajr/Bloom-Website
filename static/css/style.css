@@ -1009,12 +1009,12 @@ textarea { resize: vertical; min-height: 80px; }
 @media (max-width: 760px) {
   .sidebar-backdrop { display: block; position: fixed; inset: 0; z-index: 1050; background: rgba(35, 17, 27, 0.24); opacity: 0; pointer-events: none; transition: opacity 0.2s; }
   .sidebar-backdrop.visible { opacity: 1; pointer-events: auto; }
-  .mobile-topbar { display: flex; position: fixed; top: 0; left: 0; right: 0; z-index: 1000; height: 60px; align-items: center; justify-content: space-between; padding: 0 0.65rem; background: var(--straw-cream); border-bottom: 1px solid var(--straw-blush); box-shadow: 0 4px 16px rgba(82, 38, 54, 0.1); }
+  .mobile-topbar { display: flex; position: fixed; top: 0; left: 0; right: 0; z-index: 1000; height: 60px; align-items: center; justify-content: space-between; padding: 0 0.65rem; background: var(--straw-mist); border-bottom: 1px solid var(--straw-blush); box-shadow: 0 4px 16px rgba(82, 38, 54, 0.1); }
   .mobile-topbar .mobile-nav-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; }
-  .mobile-topbar .mobile-nav-icon:active { background: var(--straw-cream); }
+  .mobile-topbar .mobile-nav-icon:active { background: var(--straw-mist); }
   .mobile-topbar .mobile-nav-arrows { gap: 0.1rem; }
   .mobile-topbar .mobile-nav-arrows .mobile-nav-icon { font-size: 1.75rem; }
-  .mobile-brand { padding: 0.42rem 0.8rem; border-radius: 9px; background: var(--straw-cream); font-size: 1.24rem; }
+  .mobile-brand { padding: 0.42rem 0.8rem; border-radius: 9px; background: var(--straw-mist); font-size: 1.24rem; }
   .mobile-brand span { font-size: 1.42rem; }
   .main-content { padding: 1.8rem; padding-top: 4.55rem; }
   .page-header { margin-bottom: 0.7rem; }
@@ -1071,3 +1071,22 @@ textarea { resize: vertical; min-height: 80px; }
   font-size: 1.25rem; line-height: 1; cursor: pointer;
 }
 .announce-dismiss:hover { background: var(--matcha-core); color: var(--white-pure); }
+
+@media (max-width: 480px) {
+  .main-content { padding: 1rem; padding-top: 4.5rem; }
+  .mobile-topbar .mobile-nav-icon { width: 40px; height: 40px; }
+  .task-form,
+  .book-form { grid-template-columns: minmax(0, 1fr); }
+  .task-form-name,
+  .book-form-title { grid-column: auto; }
+  .task-form > div,
+  .book-form > div { min-width: 0; }
+  .task-form > button,
+  .book-form > button { width: 100%; min-height: 44px; justify-content: center; }
+  #page-habits .card-green > div { flex-wrap: wrap; }
+  #habit-input { min-width: 0; flex: 1 1 100%; }
+  #page-habits .card-green button { width: 100%; min-height: 44px; justify-content: center; }
+  .prayer-table { min-width: 420px; }
+  #page-prayer .prayer-stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .toast { top: 68px; right: 12px; left: 12px; max-width: none; }
+}
