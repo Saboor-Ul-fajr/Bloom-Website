@@ -901,9 +901,30 @@ def send_due_reminders():
     if not private_key:
         return
     now = datetime.now()
-    tasks = Task.query.filter(Task.done.is_(False), Task.reminder <= now, Task.reminder_sent_at.is_(None)).all()
-    for task in tasks:
-        payload = json.dumps({"title": "Bloom task reminder", "body": task.text, "url": "/tasks"})
+    due_task_ids = db.session.query(Task.id).filter(
+        Task.done.is_(False), Task.reminder <= now, Task.reminder_sent_at.is_(None)
+    ).all()
+    for (task_id,) in due_task_ids:
+        claimed = Task.query.filter(
+            Task.id == task_id,
+            Task.done.is_(False),
+            Task.reminder <= now,
+            Task.reminder_sent_at.is_(None)
+        ).update({Task.reminder_sent_at: now}, synchronize_session=False)
+        if not claimed:
+            continue
+        db.session.commit()
+
+        task = db.session.get(Task, task_id)
+        if not task:
+            continue
+        reminder_tag = f"task-reminder:{task.id}:{task.reminder.isoformat()}"
+        payload = json.dumps({
+            "title": f"🔔 {task.text}",
+            "body": "Your task reminder is due now.",
+            "tag": reminder_tag,
+            "url": "/tasks"
+        })
         subscriptions = PushSubscription.query.filter_by(user_id=task.user_id).all()
         for subscription in subscriptions:
             try:

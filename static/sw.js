@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bloom-shell-v4';
+const CACHE_NAME = 'bloom-shell-v5';
 const SHELL_ASSETS = [
   '/static/css/style.css',
   '/static/js/app.js',
@@ -46,7 +46,8 @@ self.addEventListener('push', event => {
 
   event.waitUntil(self.registration.showNotification(data.title || 'Bloom reminder', {
     body: data.body || 'You have a task reminder.',
-    requireInteraction: true,
+    tag: data.tag,
+    renotify: false,
     data: { url: data.url || '/tasks' }
   }));
 });

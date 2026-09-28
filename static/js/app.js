@@ -1390,6 +1390,18 @@ async function checkTaskReminders() {
     taskReminderCheckActive = true;
     try {
       const tasks = await api('/api/tasks');
+      const localMode = userId !== 'guest' && window.BloomLocalStore && await BloomLocalStore.isLocalEnabled(userId);
+      if (!localMode && !pushRegistration && 'serviceWorker' in navigator && window.isSecureContext) {
+        await registerPushWorker();
+      }
+      let serverPushActive = false;
+      if (!localMode && pushRegistration) {
+        try {
+          serverPushActive = Boolean(await pushRegistration.pushManager.getSubscription());
+        } catch (error) {
+          console.warn('Could not check task push subscription.', error);
+        }
+      }
       const storageKey = `bloom-reminders-notified:${userId}`;
       const legacy = localStorage.getItem('bloom-reminders-notified');
       if (legacy && !localStorage.getItem(storageKey)) localStorage.setItem(storageKey, legacy);
@@ -1408,11 +1420,12 @@ async function checkTaskReminders() {
 
         notified[reminderKey] = now;
         localStorage.setItem(storageKey, JSON.stringify(notified));
-        if ('Notification' in window && Notification.permission === 'granted') {
+        let shownNatively = false;
+        if (!serverPushActive && 'Notification' in window && Notification.permission === 'granted') {
           try {
             const notification = new Notification(`🔔 ${task.text}`, {
               body: 'Your task reminder is due now.',
-              requireInteraction: true,
+              requireInteraction: false,
               tag: reminderKey,
               renotify: false
             });
@@ -1420,11 +1433,12 @@ async function checkTaskReminders() {
               window.focus();
               notification.close();
             };
+            shownNatively = true;
           } catch (error) {
             console.warn('Could not show task reminder notification.', error);
           }
         }
-        showToast('🔔 Task Reminder', task.text, true);
+        if (!serverPushActive && !shownNatively) showToast('🔔 Task Reminder', task.text, true);
       }
     } finally {
       taskReminderCheckActive = false;
