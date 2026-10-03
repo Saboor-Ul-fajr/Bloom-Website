@@ -162,11 +162,10 @@ window.PrayerModule = (function () {
 
       // row styling
       let rowStyle = "";
-      if (isToday)  rowStyle = "background:rgba(232,54,93,0.07);";
       if (isPast && allDone) rowStyle = "background:rgba(61,122,68,0.06);";
       if (isFuture) rowStyle = "opacity:0.35;";
 
-      html += `<tr style="${rowStyle}">
+      html += `<tr${isToday ? ' class="today-row"' : ''} style="${rowStyle}">
         <td class="day-cell" style="font-size:0.8rem;font-weight:${isToday?'800':'600'};color:${isToday?'var(--straw-core)':'var(--text-muted)'}">
           ${d}${isToday ? ' <span style="font-size:0.6rem;background:var(--straw-core);color:white;border-radius:4px;padding:1px 4px;vertical-align:middle">TODAY</span>' : ""}
         </td>`;

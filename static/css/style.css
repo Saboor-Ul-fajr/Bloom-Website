@@ -538,22 +538,32 @@ textarea { resize: vertical; min-height: 80px; }
 }
 
 /* ─── Prayer Grid ───────────────────────────── */
-.prayer-table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 4px; }
+.prayer-table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 2px 1px; }
 .prayer-table th {
   font-size: 0.72rem; font-weight: 800;
   color: var(--matcha-rich); text-transform: uppercase; letter-spacing: 0.8px;
-  padding: 6px 4px; text-align: center;
+  padding: 4px 2px; text-align: center;
 }
-.prayer-table td { padding: 3px 4px; }
+.prayer-table td { padding: 1px 2px; }
 .prayer-table .day-cell {
-  font-size: 0.8rem; font-weight: 700;
-  color: var(--text-muted); text-align: left; padding-left: 6px;
+  font-size: 0.75rem; font-weight: 700;
+  color: var(--text-muted); text-align: left; padding-left: 4px;
   width: 36px;
 }
-.prayer-table tr.today-row td { background: rgba(232,54,93,0.06); border-radius: 8px; }
+#page-prayer .prayer-table tr.today-row td {
+  background: rgba(232,54,93,0.07);
+  border-radius: 4px;
+}
 .prayer-dot {
   width: 32px; height: 32px; border-radius: 50%;
   border: 2.5px solid var(--matcha-light);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  margin: auto; transition: all 0.2s; background: var(--matcha-cream);
+  font-size: 0; color: var(--white-pure); font-weight: 800;
+}
+.prayer-table .prayer-dot {
+  width: 27px; height: 27px; border-radius: 50%;
+  border: 2px solid var(--matcha-light);
   cursor: pointer; display: flex; align-items: center; justify-content: center;
   margin: auto; transition: all 0.2s; background: var(--matcha-cream);
   font-size: 0; color: var(--white-pure); font-weight: 800;
@@ -953,6 +963,12 @@ textarea { resize: vertical; min-height: 80px; }
   .sidebar-brand { flex: 0 0 auto; }
   .sidebar-nav-scroll { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; padding-bottom: 0.7rem; }
   .sidebar-footer { flex: 0 0 auto; margin-top: 0; padding: 0.7rem 0 calc(0.7rem + env(safe-area-inset-bottom, 0px)); background: var(--matcha-deep); }
+  #page-prayer > .month-nav { margin-bottom: 0.65rem; }
+  #page-prayer > .card:not(.card-dual) { margin-bottom: 0.7rem; padding: 0.45rem; }
+  #page-prayer .prayer-table .prayer-dot { width: 23px; height: 23px; border-width: 2px; }
+  #page-prayer .prayer-table th { padding: 3px 1px; font-size: 0.65rem; letter-spacing: 0; }
+  #page-prayer .prayer-table td { padding: 1px; }
+  #page-prayer .prayer-table .day-cell { width: 30px; padding-left: 2px; font-size: 0.7rem; }
   .mobile-toggle { display: flex; }
   .main-content { padding: 1rem; padding-top: 4rem; }
   .money-grid { grid-template-columns: 1fr; }
@@ -1093,7 +1109,9 @@ textarea { resize: vertical; min-height: 80px; }
   #page-habits .card-green > div { flex-wrap: wrap; }
   #habit-input { min-width: 0; flex: 1 1 100%; }
   #page-habits .card-green button { width: 100%; min-height: 44px; justify-content: center; }
-  .prayer-table { min-width: 420px; }
+  #page-prayer .prayer-table { min-width: 0; border-spacing: 1px 0; }
+  #page-prayer .prayer-table th { padding-inline: 0; }
+  #page-prayer .prayer-table td { padding: 0; }
   #page-prayer .prayer-stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   .toast { top: 68px; right: 12px; left: 12px; max-width: none; }
 }
