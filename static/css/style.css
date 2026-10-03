@@ -1115,8 +1115,8 @@ textarea { resize: vertical; min-height: 80px; }
   #page-prayer .prayer-table td { padding: 0; }
   #page-prayer > .card.card-dual { margin-bottom: 0.5rem; padding: 0.35rem 0.2rem; }
   #page-prayer .prayer-stats-row { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 0.15rem; margin-top: 0; }
-  #page-prayer .prayer-stat-val { font-size: 1rem; line-height: 1.05; }
-  #page-prayer .prayer-stat-lbl { margin-top: 0.1rem; font-size: 0.52rem; line-height: 1; white-space: nowrap; }
+  #page-prayer .prayer-stat-val { font-size: 1.4rem; line-height: 1.05; }
+  #page-prayer .prayer-stat-lbl { margin-top: 0.1rem; font-size: 0.70rem; line-height: 1; white-space: nowrap; }
   #page-prayer .prayer-stat-label-full { display: none; }
   #page-prayer .prayer-stat-label-short { display: inline; }
   .toast { top: 68px; right: 12px; left: 12px; max-width: none; }
