@@ -260,6 +260,7 @@ body {
   overflow-y: auto;
   box-shadow: 3px 0 24px rgba(0,0,0,0.18);
 }
+.sidebar-nav-scroll { flex: 1 1 auto; min-height: 0; }
 
 .sidebar-brand {
   font-family: 'Quicksand', sans-serif;
@@ -947,9 +948,10 @@ textarea { resize: vertical; min-height: 80px; }
 
 /* ─── Responsive ────────────────────────────── */
 @media (max-width: 760px) {
-  .sidebar { position: fixed; top: 0; bottom: 0; left: -240px; z-index: 1100; height: 100vh; height: 100dvh; max-height: 100dvh; padding-top: calc(1.5rem + env(safe-area-inset-top)); padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)); overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; transition: left 0.3s; }
+  .sidebar { position: fixed; top: 0; bottom: 0; left: -240px; z-index: 1100; height: 100vh; height: 100dvh; max-height: 100dvh; padding-top: calc(1.5rem + env(safe-area-inset-top)); padding-bottom: 0; overflow: hidden; transition: left 0.3s; }
   .sidebar.open { left: 0; }
-  .sidebar-footer { position: sticky; bottom: 0; z-index: 1; padding-top: 0.7rem; background: var(--matcha-deep); }
+  .sidebar-nav-scroll { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; padding-bottom: 0.7rem; }
+  .sidebar-footer { flex: 0 0 auto; margin-top: 0; padding-top: 0.7rem; padding-bottom: env(safe-area-inset-bottom); background: var(--matcha-deep); }
   .mobile-toggle { display: flex; }
   .main-content { padding: 1rem; padding-top: 4rem; }
   .money-grid { grid-template-columns: 1fr; }

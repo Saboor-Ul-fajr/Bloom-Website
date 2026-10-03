@@ -68,16 +68,18 @@
 
   <!-- ══ SIDEBAR ══ -->
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-brand"><span class="b-icon">🌸</span> Bloom</div>
+    <div class="sidebar-nav-scroll">
+      <div class="sidebar-brand"><span class="b-icon">🌸</span> Bloom</div>
 
-    <div class="nav-section-label">Daily</div>
-    <a class="nav-item" data-page="dashboard" onclick="showPage('dashboard')"><span class="n-icon">🏡</span>Home</a>
-    <a class="nav-item" data-page="prayer"    onclick="showPage('prayer')"><span class="n-icon">🕌</span>Prayers</a>
-    <a class="nav-item" data-page="thoughts"  onclick="showPage('thoughts')"><span class="n-icon">📓</span>Thoughts</a>
-    <a class="nav-item" data-page="tasks"     onclick="showPage('tasks')"><span class="n-icon">✅</span>Tasks</a>
-    <a class="nav-item" data-page="habits"    onclick="showPage('habits')"><span class="n-icon">🌙</span>Daily Habits</a>
-    <a class="nav-item" data-page="money"     onclick="showPage('money')"><span class="n-icon">🥞</span>Bites and Buys</a>
-    <a class="nav-item" data-page="books"     onclick="showPage('books')"><span class="n-icon">📜</span>Books</a>
+      <div class="nav-section-label">Daily</div>
+      <a class="nav-item" data-page="dashboard" onclick="showPage('dashboard')"><span class="n-icon">🏡</span>Home</a>
+      <a class="nav-item" data-page="prayer"    onclick="showPage('prayer')"><span class="n-icon">🕌</span>Prayers</a>
+      <a class="nav-item" data-page="thoughts"  onclick="showPage('thoughts')"><span class="n-icon">📓</span>Thoughts</a>
+      <a class="nav-item" data-page="tasks"     onclick="showPage('tasks')"><span class="n-icon">✅</span>Tasks</a>
+      <a class="nav-item" data-page="habits"    onclick="showPage('habits')"><span class="n-icon">🌙</span>Daily Habits</a>
+      <a class="nav-item" data-page="money"     onclick="showPage('money')"><span class="n-icon">🥞</span>Bites and Buys</a>
+      <a class="nav-item" data-page="books"     onclick="showPage('books')"><span class="n-icon">📜</span>Books</a>
+    </div>
 
     <div class="sidebar-footer">
       <a class="nav-item account-nav-item" data-page="account" onclick="showPage('account')"><span class="account-avatar">{{ user.username[0].upper() }}</span><span class="account-nav-copy"><strong>Account</strong><small>{{ user.username }}</small></span></a>
