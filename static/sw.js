@@ -1,6 +1,6 @@
-const CACHE_NAME = 'bloom-shell-v13';
+const CACHE_NAME = 'bloom-shell-v14';
 const SHELL_ASSETS = [
-  '/static/css/style.css?v=prayer-cell-fill-20261004',
+  '/static/css/style.css?v=prayer-stats-row-20261004',
   '/static/js/app.js',
   '/static/js/local-store.js',
   '/static/js/prayer.js',

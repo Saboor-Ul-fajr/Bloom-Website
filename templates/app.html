@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="csrf-token" content="{{ session.get('csrf_token', '') }}">
   <title>Bloom 🌸</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='prayer-cell-fill-20261004') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='prayer-stats-row-20261004') }}">
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
 </head>
 <body data-page="{{ page }}" data-user-id="{{ user.id }}">
@@ -153,10 +153,10 @@
 
       <div class="card card-dual">
         <div class="prayer-stats-row" style="grid-template-columns:repeat(4,1fr)">
-          <div><div class="prayer-stat-val green-val" id="p-prayed">0</div><div class="prayer-stat-lbl">Prayed This Month</div></div>
-          <div><div class="prayer-stat-val pink-val"  id="p-pct">0%</div><div class="prayer-stat-lbl">Completion Rate</div></div>
-          <div><div class="prayer-stat-val green-val" id="p-streak">0</div><div class="prayer-stat-lbl">Current Streak 🔥</div></div>
-          <div><div class="prayer-stat-val pink-val"  id="p-best">0</div><div class="prayer-stat-lbl">Best Streak 🏆</div></div>
+          <div><div class="prayer-stat-val green-val" id="p-prayed">0</div><div class="prayer-stat-lbl"><span class="prayer-stat-label-full">Prayed This Month</span><span class="prayer-stat-label-short">Prayed</span></div></div>
+          <div><div class="prayer-stat-val pink-val"  id="p-pct">0%</div><div class="prayer-stat-lbl"><span class="prayer-stat-label-full">Completion Rate</span><span class="prayer-stat-label-short">Rate</span></div></div>
+          <div><div class="prayer-stat-val green-val" id="p-streak">0</div><div class="prayer-stat-lbl"><span class="prayer-stat-label-full">Current Streak 🔥</span><span class="prayer-stat-label-short">Streak 🔥</span></div></div>
+          <div><div class="prayer-stat-val pink-val"  id="p-best">0</div><div class="prayer-stat-lbl"><span class="prayer-stat-label-full">Best Streak 🏆</span><span class="prayer-stat-label-short">Best 🏆</span></div></div>
         </div>
       </div>
     </div>
