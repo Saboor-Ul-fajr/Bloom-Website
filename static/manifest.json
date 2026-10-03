@@ -1,9 +1,13 @@
 {
-  "name": "Bloom Daily Life Garden",
+  "name": "Bloom",
   "short_name": "Bloom",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#faabd6",
   "theme_color": "#e72b99",
-  "description": "Daily tasks, reminders, prayers, habits, thoughts, money and books."
+  "description": "Daily tasks, reminders, prayers, habits, thoughts, money and books.",
+  "icons": [
+    { "src": "/static/192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/static/512.png", "sizes": "512x512", "type": "image/png" }
+  ]
 }

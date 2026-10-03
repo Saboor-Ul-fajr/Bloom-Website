@@ -1499,7 +1499,7 @@ function setupNotificationPrompt() {
 async function registerPushWorker() {
   if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
   try {
-    pushRegistration = await navigator.serviceWorker.register('/static/sw.js');
+    pushRegistration = await navigator.serviceWorker.register('/sw.js');
     const subscription = await pushRegistration.pushManager.getSubscription();
     if (subscription) setNotificationStatus('Phone notifications are enabled.');
   } catch (error) {

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_from_directory
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -123,6 +123,15 @@ def protect_state_changes():
     if not expected or not provided or not hmac.compare_digest(provided, expected):
         return jsonify({"ok": False, "error": "Invalid security token. Refresh the page and try again."}), 403
     return None
+
+# For app manifest and root-scoped service worker.
+@app.route("/manifest.json")
+def manifest():
+    return send_from_directory("static", "manifest.json", mimetype="application/manifest+json")
+
+@app.route("/sw.js")
+def sw():
+    return send_from_directory("static", "sw.js", mimetype="application/javascript")
 
 # ─────────────────── auth ───────────────────
 @app.route("/", methods=["GET"])
