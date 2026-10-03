@@ -299,6 +299,9 @@ body {
 }
 .nav-item .n-icon { font-size: 1.1rem; width: 22px; text-align: center; flex-shrink: 0; }
 .account-avatar { width: 24px; height: 24px; display: inline-grid; place-items: center; flex-shrink: 0; border-radius: 50%; background: linear-gradient(135deg, var(--straw-core), var(--matcha-core)); color: var(--white-pure); font-size: 0.75rem; font-weight: 800; }
+.account-nav-copy { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.account-nav-copy strong { color: inherit; font-size: 0.9rem; }
+.account-nav-copy small { overflow: hidden; color: rgba(255,255,255,0.72); font-size: 0.72rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 
 .sidebar-footer {
   margin-top: auto;
@@ -944,8 +947,9 @@ textarea { resize: vertical; min-height: 80px; }
 
 /* ─── Responsive ────────────────────────────── */
 @media (max-width: 760px) {
-  .sidebar { position: fixed; top: 0; left: -240px; z-index: 1100; transition: left 0.3s; height: 100vh; }
+  .sidebar { position: fixed; top: 0; bottom: 0; left: -240px; z-index: 1100; height: 100vh; height: 100dvh; max-height: 100dvh; padding-top: calc(1.5rem + env(safe-area-inset-top)); padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)); overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; transition: left 0.3s; }
   .sidebar.open { left: 0; }
+  .sidebar-footer { position: sticky; bottom: 0; z-index: 1; padding-top: 0.7rem; background: var(--matcha-deep); }
   .mobile-toggle { display: flex; }
   .main-content { padding: 1rem; padding-top: 4rem; }
   .money-grid { grid-template-columns: 1fr; }
