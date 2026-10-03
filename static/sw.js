@@ -1,6 +1,6 @@
-const CACHE_NAME = 'bloom-shell-v5';
+const CACHE_NAME = 'bloom-shell-v7';
 const SHELL_ASSETS = [
-  '/static/css/style.css',
+  '/static/css/style.css?v=drawer-safearea-20261003',
   '/static/js/app.js',
   '/static/js/local-store.js',
   '/static/js/prayer.js',

@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="csrf-token" content="{{ session.get('csrf_token', '') }}">
   <title>Bloom 🌸</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='drawer-safearea-20261003') }}">
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
 </head>
 <body data-page="{{ page }}" data-user-id="{{ user.id }}">
@@ -68,9 +68,9 @@
 
   <!-- ══ SIDEBAR ══ -->
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-nav-scroll">
-      <div class="sidebar-brand"><span class="b-icon">🌸</span> Bloom</div>
+    <div class="sidebar-brand"><span class="b-icon">🌸</span> Bloom</div>
 
+    <div class="sidebar-nav-scroll">
       <div class="nav-section-label">Daily</div>
       <a class="nav-item" data-page="dashboard" onclick="showPage('dashboard')"><span class="n-icon">🏡</span>Home</a>
       <a class="nav-item" data-page="prayer"    onclick="showPage('prayer')"><span class="n-icon">🕌</span>Prayers</a>
